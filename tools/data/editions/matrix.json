@@ -1,0 +1,97 @@
+{
+  "ce_features": [
+    "qos/ratelimit/router",
+    "qos/ratelimit/proxy",
+    "security/cors",
+    "auth/validator",
+    "qos/circuit-breaker",
+    "modifier/jmespath",
+    "backend/grpc",
+    "auth/signer",
+    "proxy",
+    "plugin/http-server",
+    "plugin/http-client",
+    "modifier/lua-backend",
+    "modifier/lua-endpoint",
+    "telemetry/opencensus",
+    "telemetry/metrics",
+    "telemetry/logging"
+  ],
+  "ee_only_features": [
+    "auth/api-keys",
+    "websocket",
+    "security/policies",
+    "qos/ratelimit/stateful",
+    "telemetry/moesif",
+    "plugin/req-resp-modifier",
+    "backend/soap",
+    "virtualhost",
+    "proxy/sequential",
+    "telemetry/ganalytics"
+  ],
+  "feature_details": {
+    "qos/ratelimit/router": {
+      "name": "Endpoint Rate Limiting",
+      "ce": true,
+      "ee": true,
+      "notes": "Available in both editions"
+    },
+    "qos/ratelimit/proxy": {
+      "name": "Backend Rate Limiting",
+      "ce": true,
+      "ee": true,
+      "notes": "Available in both editions"
+    },
+    "qos/ratelimit/stateful": {
+      "name": "Stateful Rate Limiting",
+      "ce": false,
+      "ee": true,
+      "notes": "Requires Enterprise Edition for Redis-backed rate limiting"
+    },
+    "security/cors": {
+      "name": "CORS",
+      "ce": true,
+      "ee": true,
+      "notes": "Available in both editions"
+    },
+    "auth/validator": {
+      "name": "JWT Validator",
+      "ce": true,
+      "ee": true,
+      "notes": "Available in both editions"
+    },
+    "auth/api-keys": {
+      "name": "API Key Authentication",
+      "ce": false,
+      "ee": true,
+      "notes": "Enterprise only"
+    },
+    "websocket": {
+      "name": "WebSocket Support",
+      "ce": false,
+      "ee": true,
+      "notes": "Enterprise only"
+    },
+    "security/policies": {
+      "name": "Security Policies Engine",
+      "ce": false,
+      "ee": true,
+      "notes": "Enterprise only - fine-grained access control with CEL"
+    },
+    "qos/circuit-breaker": {
+      "name": "Circuit Breaker",
+      "ce": true,
+      "ee": true,
+      "notes": "Available in both editions"
+    },
+    "backend/grpc": {
+      "name": "gRPC Backend",
+      "ce": true,
+      "ee": true,
+      "notes": "Available in both editions"
+    }
+  },
+  "version": "2.6",
+  "last_updated": "2025-12-12",
+  "notes": "This matrix reflects KrakenD v2.6 feature availability. CE = Community Edition (open source), EE = Enterprise Edition (commercial)"
+}

@@ -1,0 +1,424 @@
+{
+  "features": [
+    {
+      "id": "rate-limit-endpoint",
+      "name": "Endpoint Rate Limiting",
+      "namespace": "qos/ratelimit/router",
+      "edition": "ce",
+      "category": "traffic-management",
+      "description": "Limit requests per endpoint to prevent overload",
+      "docs_url": "https://www.krakend.io/docs/endpoints/rate-limit/",
+      "required_fields": ["max_rate", "capacity"],
+      "optional_fields": ["client_max_rate", "client_capacity", "strategy"],
+      "example_config": {
+        "qos/ratelimit/router": {
+          "max_rate": 100,
+          "capacity": 100
+        }
+      }
+    },
+    {
+      "id": "rate-limit-backend",
+      "name": "Backend Rate Limiting",
+      "namespace": "qos/ratelimit/proxy",
+      "edition": "ce",
+      "category": "traffic-management",
+      "description": "Limit requests to backend services",
+      "docs_url": "https://www.krakend.io/docs/backends/rate-limit/",
+      "required_fields": ["max_rate", "capacity"],
+      "optional_fields": [],
+      "example_config": {
+        "qos/ratelimit/proxy": {
+          "max_rate": 50,
+          "capacity": 50
+        }
+      }
+    },
+    {
+      "id": "cors",
+      "name": "CORS Support",
+      "namespace": "security/cors",
+      "edition": "ce",
+      "category": "security",
+      "description": "Configure Cross-Origin Resource Sharing",
+      "docs_url": "https://www.krakend.io/docs/service-settings/cors/",
+      "required_fields": [],
+      "optional_fields": ["allow_origins", "allow_methods", "allow_headers", "expose_headers", "max_age", "allow_credentials"],
+      "example_config": {
+        "security/cors": {
+          "allow_origins": ["*"],
+          "allow_methods": ["GET", "POST", "PUT"],
+          "max_age": "12h"
+        }
+      }
+    },
+    {
+      "id": "jwt-validation",
+      "name": "JWT Validation",
+      "namespace": "auth/validator",
+      "edition": "ce",
+      "category": "authentication",
+      "description": "Validate JSON Web Tokens",
+      "docs_url": "https://www.krakend.io/docs/authorization/jwt-validation/",
+      "required_fields": ["alg", "audience"],
+      "optional_fields": ["jwk_url", "jwk_local_path", "issuer", "roles_key", "roles"],
+      "example_config": {
+        "auth/validator": {
+          "alg": "RS256",
+          "audience": ["https://api.example.com"],
+          "jwk_url": "https://example.com/.well-known/jwks.json"
+        }
+      }
+    },
+    {
+      "id": "circuit-breaker",
+      "name": "Circuit Breaker",
+      "namespace": "qos/circuit-breaker",
+      "edition": "ce",
+      "category": "reliability",
+      "description": "Prevent cascade failures when backends are down",
+      "docs_url": "https://www.krakend.io/docs/backends/circuit-breaker/",
+      "required_fields": [],
+      "optional_fields": ["interval", "timeout", "maxErrors", "logStatusChange", "name"],
+      "example_config": {
+        "qos/circuit-breaker": {
+          "interval": 60,
+          "timeout": 10,
+          "maxErrors": 5,
+          "logStatusChange": true
+        }
+      }
+    },
+    {
+      "id": "response-manipulation",
+      "name": "Response Manipulation",
+      "namespace": "modifier/jmespath",
+      "edition": "ce",
+      "category": "transformation",
+      "description": "Transform and filter response data using JMESPath",
+      "docs_url": "https://www.krakend.io/docs/backends/jmespath/",
+      "required_fields": ["expr"],
+      "optional_fields": [],
+      "example_config": {
+        "modifier/jmespath": {
+          "expr": "data[?status=='active']"
+        }
+      }
+    },
+    {
+      "id": "api-keys",
+      "name": "API Key Authentication",
+      "namespace": "auth/api-keys",
+      "edition": "ee",
+      "category": "authentication",
+      "description": "API key-based authentication (Enterprise only)",
+      "docs_url": "https://www.krakend.io/docs/enterprise/authentication/api-keys/",
+      "required_fields": ["keys"],
+      "optional_fields": ["strategy", "hash"],
+      "example_config": {
+        "auth/api-keys": {
+          "keys": ["key1", "key2"]
+        }
+      }
+    },
+    {
+      "id": "websockets",
+      "name": "WebSocket Support",
+      "namespace": "websocket",
+      "edition": "ee",
+      "category": "connectivity",
+      "description": "WebSocket connections (Enterprise only)",
+      "docs_url": "https://www.krakend.io/docs/enterprise/websockets/",
+      "required_fields": ["input_headers", "connect_event"],
+      "optional_fields": ["disconnect_event", "read_buffer_size", "write_buffer_size"],
+      "example_config": {
+        "websocket": {
+          "input_headers": ["*"],
+          "connect_event": true,
+          "disconnect_event": true
+        }
+      }
+    },
+    {
+      "id": "security-policies",
+      "name": "Security Policies Engine",
+      "namespace": "security/policies",
+      "edition": "ee",
+      "category": "security",
+      "description": "Fine-grained access control using CEL expressions (Enterprise only)",
+      "docs_url": "https://www.krakend.io/docs/enterprise/security-policies/",
+      "required_fields": ["policies"],
+      "optional_fields": ["auto_join_policies", "deny_by_default"],
+      "example_config": {
+        "security/policies": {
+          "policies": [
+            {
+              "name": "admin-only",
+              "expression": "has(JWT.roles) && 'admin' in JWT.roles"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "grpc-gateway",
+      "name": "gRPC Gateway",
+      "namespace": "backend/grpc",
+      "edition": "ce",
+      "category": "connectivity",
+      "description": "Connect to gRPC backends",
+      "docs_url": "https://www.krakend.io/docs/backends/grpc/",
+      "required_fields": ["server", "method"],
+      "optional_fields": ["use_request_body", "client_tls", "output_mapping"],
+      "example_config": {
+        "backend/grpc": {
+          "server": {
+            "address": "grpc-server:9000"
+          },
+          "method": "MyService/MyMethod"
+        }
+      }
+    },
+    {
+      "id": "docker-deployment",
+      "name": "Docker Deployment",
+      "namespace": "deployment/docker",
+      "edition": "ce",
+      "category": "deployment",
+      "description": "Official Docker images for KrakenD deployment",
+      "docs_url": "https://www.krakend.io/docs/deploying/docker/",
+      "docker_images": {
+        "ce": {
+          "image": "krakend:latest",
+          "description": "Official Community Edition image",
+          "license": "Apache 2.0",
+          "usage": "docker run -p 8080:8080 -v $PWD:/etc/krakend/ krakend:latest run -c /etc/krakend/krakend.json"
+        },
+        "ee": {
+          "image": "krakend/krakend-ee:latest",
+          "description": "Official Enterprise Edition image",
+          "license": "Commercial - requires valid license",
+          "usage": "docker run -e KRAKEND_LICENSE_KEY=your-key -p 8080:8080 -v $PWD:/etc/krakend/ krakend/krakend-ee:latest run -c /etc/krakend/krakend.json",
+          "notes": "Requires KRAKEND_LICENSE_KEY environment variable with valid license or trial key"
+        }
+      },
+      "deprecated_images": [
+        {
+          "image": "devopsfaith/krakend",
+          "replacement": "krakend:latest",
+          "notes": "Old image from DevOpsFaith organization. Use official 'krakend:latest' instead"
+        },
+        {
+          "image": "krakend/krakend:latest",
+          "replacement": "krakend:latest",
+          "notes": "Use official 'krakend:latest' without namespace"
+        }
+      ]
+    },
+    {
+      "id": "flexible-configuration-ce",
+      "name": "Flexible Configuration (CE)",
+      "namespace": "config/flexible",
+      "edition": "ce",
+      "category": "configuration",
+      "description": "Split KrakenD configuration across multiple template files using Go templates. Requires environment variables to activate.",
+      "docs_url": "https://www.krakend.io/docs/configuration/flexible-config/",
+      "detection": {
+        "files": ["*.tmpl", "krakend.tmpl"],
+        "directories": ["config/templates", "config/settings", "config/partials", "templates/", "settings/", "partials/"],
+        "template_syntax": ["{{", "}}"],
+        "indicators": "Look for .tmpl files, config/ directory with templates/settings/partials subdirectories, or Go template syntax in configuration files"
+      },
+      "environment_variables": {
+        "FC_ENABLE": {
+          "required": true,
+          "value": "1",
+          "description": "Activates Flexible Configuration system"
+        },
+        "FC_SETTINGS": {
+          "required": true,
+          "example": "config/settings/prod",
+          "description": "Directory containing JSON settings files (like environment variables)"
+        },
+        "FC_TEMPLATES": {
+          "required": true,
+          "example": "config/templates",
+          "description": "Directory containing reusable template files"
+        },
+        "FC_PARTIALS": {
+          "required": true,
+          "example": "config/partials",
+          "description": "Directory containing text snippets inserted as-is (non-evaluated)"
+        },
+        "FC_OUT": {
+          "required": false,
+          "example": "out.json",
+          "description": "Optional output file for debugging rendered configuration"
+        }
+      },
+      "command_examples": {
+        "check": "FC_ENABLE=1 FC_SETTINGS=config/settings/prod FC_TEMPLATES=config/templates FC_PARTIALS=config/partials krakend check -tdc krakend.tmpl",
+        "audit": "FC_ENABLE=1 FC_SETTINGS=config/settings/prod FC_TEMPLATES=config/templates FC_PARTIALS=config/partials krakend audit -tdc krakend.tmpl",
+        "run": "FC_ENABLE=1 FC_SETTINGS=config/settings/prod FC_TEMPLATES=config/templates FC_PARTIALS=config/partials krakend run -dc krakend.tmpl",
+        "debug": "FC_ENABLE=1 FC_SETTINGS=config/settings/prod FC_TEMPLATES=config/templates FC_PARTIALS=config/partials FC_OUT=out.json krakend check -tdc krakend.tmpl"
+      },
+      "file_structure": {
+        "typical": "krakend.tmpl (base) + config/settings/{env}/*.json + config/templates/*.tmpl + config/partials/*.tmpl",
+        "example": "https://github.com/krakend/examples/tree/main/3.flexible-configuration/community"
+      },
+      "implications": [
+        "Configuration file passed to -c must be the base template (e.g., krakend.tmpl)",
+        "All KrakenD commands require FC environment variables when using FC",
+        "Template syntax is processed before validation",
+        "Settings files are loaded as template variables",
+        "Partials are inserted as raw text without evaluation",
+        "Use FC_OUT to generate compiled JSON for debugging"
+      ]
+    },
+    {
+      "id": "flexible-configuration-ee",
+      "name": "Extended Flexible Configuration (EE)",
+      "namespace": "config/flexible-extended",
+      "edition": "ee",
+      "category": "configuration",
+      "description": "Advanced multi-file configuration with behavioral file. More powerful and easier to use than CE version. No environment variables needed.",
+      "docs_url": "https://www.krakend.io/docs/enterprise/configuration/flexible-config/",
+      "detection": {
+        "files": ["flexible_config.json"],
+        "directories": ["environment/", "settings/", "templates/", "partials/"],
+        "required_files": ["flexible_config.json"],
+        "indicators": "Presence of flexible_config.json is definitive indicator of EE Extended FC"
+      },
+      "behavioral_file": {
+        "name": "flexible_config.json",
+        "schema": "https://www.krakend.io/schema/flexible_config.json",
+        "description": "Defines settings paths, allowed suffixes, partials and templates locations",
+        "key_fields": {
+          "settings.paths": "Array of directories to load settings from (supports multi-format: .json, .yaml, .toml, .ini, .env, .properties)",
+          "settings.allow_overwrite": "Whether later paths can override earlier ones",
+          "partials.paths": "Array of directories containing raw text partials",
+          "templates.paths": "Array of directories containing template files",
+          "out": "Output file for compiled configuration (debugging)",
+          "debug": "Enable debug mode showing settings hierarchy",
+          "keys_naming_rules": "strict (enforce KrakenD schema) or freeform (allow any keys)"
+        }
+      },
+      "environment_variables": {
+        "FC_CONFIG": {
+          "required": false,
+          "example": "flexible_config.json",
+          "description": "Specify custom behavioral filename (default: flexible_config.json in working directory)"
+        },
+        "FC_DEBUG": {
+          "required": false,
+          "example": "true",
+          "description": "Enable debug mode showing settings hierarchy"
+        },
+        "KRAKEND_LICENSE_PATH": {
+          "required": true,
+          "example": "/LICENSE",
+          "description": "Path to KrakenD Enterprise license file"
+        }
+      },
+      "command_examples": {
+        "check": "krakend check -c krakend.json",
+        "audit": "krakend audit -c krakend.json",
+        "run": "krakend run -dc krakend.json",
+        "docker": "docker run -e KRAKEND_LICENSE_PATH=/LICENSE -v $PWD:/etc/krakend krakend/krakend-ee check -c krakend.json",
+        "watch": "docker run -e KRAKEND_LICENSE_PATH=/LICENSE -v $PWD:/etc/krakend krakend/krakend-ee:watch"
+      },
+      "file_structure": {
+        "typical": "flexible_config.json + krakend.json (base) + environment/{common,prod,dev}/*.yaml + settings/**/*.{json,yaml,toml} + templates/*.tmpl + partials/",
+        "example": "https://github.com/krakend/examples/tree/main/3.flexible-configuration/enterprise",
+        "multi_format_support": ["json", "yaml", "yml", "toml", "ini", "env", "properties"]
+      },
+      "advantages_over_ce": [
+        "No environment variables required (behavioral file handles everything)",
+        "Supports multiple file formats (JSON, YAML, TOML, INI, ENV, properties)",
+        "More robust handling of complex scenarios",
+        "Environment-based settings with override support",
+        "Built-in hot reload support (watch image)",
+        "Better debugging with out.json generation",
+        "Configurable undefined variable handling"
+      ],
+      "implications": [
+        "Configuration file passed to -c is typically krakend.json (not .tmpl extension, but can contain template syntax)",
+        "flexible_config.json defines all paths - no env vars needed",
+        "Supports environment-based settings (common + prod/dev overrides)",
+        "Templates can use variables from settings loaded via behavioral file",
+        "Settings from multiple paths can override each other (if allow_overwrite: true)",
+        "Compatible with all standard KrakenD commands (check, audit, run)",
+        "out.json file shows compiled configuration for debugging"
+      ]
+    },
+    {
+      "id": "security-audit",
+      "name": "Security Audit",
+      "namespace": "security/audit",
+      "edition": "ce",
+      "category": "security",
+      "description": "Comprehensive security audit using krakend audit command to identify vulnerabilities, authentication gaps, and security best practices violations",
+      "docs_url": "https://www.krakend.io/docs/service-settings/security/",
+      "command": "krakend audit -c krakend.json",
+      "audit_categories": {
+        "authentication": "Missing or weak authentication mechanisms",
+        "authorization": "Authorization bypasses or inadequate access controls",
+        "exposure": "Exposed sensitive information or debug endpoints",
+        "dos-protection": "Lack of rate limiting or abuse prevention",
+        "security-headers": "Missing security-related HTTP headers",
+        "encryption": "Weak or missing encryption (TLS, JWT signing)",
+        "injection": "Potential injection vulnerabilities",
+        "best-practice": "Security best practice violations"
+      },
+      "severity_levels": {
+        "critical": "Immediate action required - active security vulnerability",
+        "high": "Serious security gaps that should be addressed urgently",
+        "medium": "Important improvements that enhance security posture",
+        "low": "Best practice recommendations",
+        "info": "Informational notices about configuration"
+      },
+      "common_findings": [
+        {
+          "issue": "Missing authentication",
+          "severity": "high",
+          "check": "Endpoints accepting POST/PUT/DELETE without auth",
+          "remediation": "Add JWT validation or API key authentication"
+        },
+        {
+          "issue": "Debug endpoint enabled",
+          "severity": "high",
+          "check": "debug_endpoint configuration present",
+          "remediation": "Remove or disable debug_endpoint in production"
+        },
+        {
+          "issue": "Missing CORS configuration",
+          "severity": "medium",
+          "check": "No security/cors configuration",
+          "remediation": "Add CORS with explicit allowed origins"
+        },
+        {
+          "issue": "No rate limiting",
+          "severity": "medium",
+          "check": "Endpoints without qos/ratelimit/router",
+          "remediation": "Add rate limiting to prevent abuse"
+        }
+      ],
+      "integration": {
+        "native": "krakend audit -c krakend.json",
+        "docker": "docker run -v $(pwd):/etc/krakend krakend:latest audit -c /etc/krakend/krakend.json",
+        "fallback": "Basic security checks (authentication, CORS, rate limiting, debug endpoints)"
+      },
+      "best_practices": [
+        "Run audit before initial deployment",
+        "Audit after any configuration changes",
+        "Audit after adding new endpoints",
+        "Regular periodic audits (monthly/quarterly)",
+        "Audit after security incidents",
+        "Audit after KrakenD version upgrades"
+      ]
+    }
+  ],
+  "version": "1.1.0",
+  "last_updated": "2025-12-12",
+  "notes": "Added Flexible Configuration (CE and EE) support with automatic detection, command adjustment, and comprehensive documentation. Plugin v0.3.0."
+}

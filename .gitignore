@@ -1,0 +1,46 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+krakend-mcp-server
+krakend-mcp-*
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Dependency directories
+vendor/
+
+# Go workspace file
+go.work
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+build/
+
+# Temporary build files
+cmd/indexer/
+
+# Documentation (downloaded during build, then embedded)
+tools/data/docs/llms-full.txt
+tools/data/docs/cache.meta
+tools/data/search/
+
+# Temporary files
+*.tmp
+*.log

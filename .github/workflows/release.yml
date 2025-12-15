@@ -1,0 +1,146 @@
+name: Build and Release KrakenD MCP Server
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build and Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building version: $VERSION"
+
+      - name: Build all platforms
+        run: |
+          chmod +x scripts/build.sh
+          ./scripts/build.sh --all
+
+      - name: Verify builds
+        run: |
+          echo "Verifying all binaries exist..."
+          ls -lh build/
+
+          # Check all expected binaries exist
+          for binary in krakend-mcp-darwin-amd64 krakend-mcp-darwin-arm64 krakend-mcp-linux-amd64 krakend-mcp-linux-arm64 krakend-mcp-windows-amd64.exe; do
+            if [ ! -f "build/$binary" ]; then
+              echo "ERROR: Missing binary: $binary"
+              exit 1
+            fi
+            echo "✓ Found: $binary ($(du -h build/$binary | cut -f1))"
+          done
+
+          # Verify checksums file exists
+          if [ ! -f "build/checksums.txt" ]; then
+            echo "ERROR: Missing checksums.txt"
+            exit 1
+          fi
+
+          echo ""
+          echo "Checksums:"
+          cat build/checksums.txt
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: KrakenD MCP Server v${{ steps.version.outputs.version }}
+          body: |
+            ## KrakenD MCP Server v${{ steps.version.outputs.version }}
+
+            Universal MCP server for KrakenD API Gateway configuration assistance.
+
+            ### ✨ Features
+
+            - ✅ **Configuration Validation** - Version-aware with specific error messages
+            - 🔒 **Security Auditing** - Comprehensive security analysis
+            - 🎯 **Feature Discovery** - Browse 100+ features with CE/EE compatibility
+            - 🏗️ **Config Generation** - Generate endpoints, backends, complete configs
+            - 📖 **Documentation Search** - Full-text search (embedded, offline-capable)
+            - 🔍 **Edition Detection** - Automatic CE vs EE detection
+
+            ### 📦 Download
+
+            Choose the binary for your platform:
+
+            | Platform | Binary | Size |
+            |----------|--------|------|
+            | macOS (Apple Silicon) | \`krakend-mcp-darwin-arm64\` | ~21MB |
+            | macOS (Intel) | \`krakend-mcp-darwin-amd64\` | ~22MB |
+            | Linux (x64) | \`krakend-mcp-linux-amd64\` | ~22MB |
+            | Linux (ARM64) | \`krakend-mcp-linux-arm64\` | ~21MB |
+            | Windows (x64) | \`krakend-mcp-windows-amd64.exe\` | ~22MB |
+
+            ### 🚀 Quick Install
+
+            **Automatic installation** (macOS/Linux):
+            \`\`\`bash
+            curl -sSL https://raw.githubusercontent.com/krakend/mcp-server/main/scripts/install.sh | bash
+            \`\`\`
+
+            **Manual installation**:
+            1. Download the binary for your platform
+            2. Verify checksum from \`checksums.txt\`
+            3. Make it executable: \`chmod +x krakend-mcp-*\`
+            4. Move to PATH: \`sudo mv krakend-mcp-* /usr/local/bin/krakend-mcp-server\`
+
+            ### 📚 Documentation
+
+            - **README**: https://github.com/krakend/mcp-server
+            - **MCP Configuration**: See README for client-specific setup
+            - **Claude Code Plugin**: https://github.com/krakend/krakend-ai-assistant
+
+            ### ⚡ What's New
+
+            - Fully offline-capable with embedded KrakenD documentation
+            - Pre-built search index for instant documentation search
+            - Cross-platform binary works on macOS, Linux, Windows
+            - Optional documentation refresh with \`refresh_documentation_index\` tool
+
+            ---
+
+            **Full Changelog**: https://github.com/krakend/mcp-server/commits/v${{ steps.version.outputs.version }}
+          files: |
+            build/krakend-mcp-darwin-amd64
+            build/krakend-mcp-darwin-arm64
+            build/krakend-mcp-linux-amd64
+            build/krakend-mcp-linux-arm64
+            build/krakend-mcp-windows-amd64.exe
+            build/checksums.txt
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Release Summary
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "✅ Release v${{ steps.version.outputs.version }} Created Successfully!"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "Release URL: https://github.com/krakend/mcp-server/releases/tag/v${{ steps.version.outputs.version }}"
+          echo ""
+          echo "Binaries uploaded:"
+          echo "  ✓ krakend-mcp-darwin-amd64"
+          echo "  ✓ krakend-mcp-darwin-arm64"
+          echo "  ✓ krakend-mcp-linux-amd64"
+          echo "  ✓ krakend-mcp-linux-arm64"
+          echo "  ✓ krakend-mcp-windows-amd64.exe"
+          echo "  ✓ checksums.txt"
