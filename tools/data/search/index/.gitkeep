@@ -1,2 +1,0 @@
-# Placeholder to satisfy go:embed directive
-# Real search index is built by scripts/build.sh and gitignored

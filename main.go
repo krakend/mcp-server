@@ -81,6 +81,10 @@ func registerTools(server *mcp.Server) error {
 	}
 	toolCount += 2
 
+	// Phase 1: Runtime detection tool (1 tool)
+	tools.RegisterRuntimeTools(server)
+	toolCount++
+
 	// Phase 1: Documentation search tools (2 tools)
 	if err := tools.RegisterDocSearchTools(server); err != nil {
 		log.Printf("Warning: Failed to register doc search tools: %v", err)
@@ -101,7 +105,7 @@ func registerTools(server *mcp.Server) error {
 	}
 	toolCount += 4
 
-	log.Printf("✓ All tools registered: %d tools (validation + features + generation + doc search)", toolCount)
+	log.Printf("✓ All tools registered: %d tools (validation + runtime + features + generation + doc search)", toolCount)
 	return nil
 }
 

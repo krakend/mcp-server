@@ -2,12 +2,14 @@ package tools
 
 import (
 	"testing"
+
+	"github.com/krakend/mcp-server/internal/features"
 )
 
 func TestFindNamespacesInConfig_EmptyConfig(t *testing.T) {
 	config := map[string]interface{}{}
 
-	namespaces := findNamespacesInConfig(config)
+	namespaces := features.FindNamespacesInConfig(config)
 
 	if len(namespaces) != 0 {
 		t.Errorf("Expected 0 namespaces, got %d", len(namespaces))
@@ -26,7 +28,7 @@ func TestFindNamespacesInConfig_WithNamespaces(t *testing.T) {
 		},
 	}
 
-	namespaces := findNamespacesInConfig(config)
+	namespaces := features.FindNamespacesInConfig(config)
 
 	if len(namespaces) != 2 {
 		t.Errorf("Expected 2 namespaces, got %d", len(namespaces))
@@ -72,7 +74,7 @@ func TestFindNamespacesInConfig_Deduplication(t *testing.T) {
 		},
 	}
 
-	namespaces := findNamespacesInConfig(config)
+	namespaces := features.FindNamespacesInConfig(config)
 
 	// Should only find 1 unique namespace despite 3 occurrences
 	if len(namespaces) != 1 {
@@ -98,7 +100,7 @@ func TestFindNamespacesInConfig_NestedStructures(t *testing.T) {
 		},
 	}
 
-	namespaces := findNamespacesInConfig(config)
+	namespaces := features.FindNamespacesInConfig(config)
 
 	if len(namespaces) != 1 {
 		t.Errorf("Expected 1 namespace, got %d", len(namespaces))
@@ -115,7 +117,7 @@ func TestFindNamespacesInConfig_NoSlashKeys(t *testing.T) {
 		"endpoints": []interface{}{},
 	}
 
-	namespaces := findNamespacesInConfig(config)
+	namespaces := features.FindNamespacesInConfig(config)
 
 	if len(namespaces) != 0 {
 		t.Errorf("Expected 0 namespaces (no keys with '/'), got %d", len(namespaces))
@@ -139,7 +141,7 @@ func TestCollectNamespaces_MapPerformance(t *testing.T) {
 		"endpoints": endpoints,
 	}
 
-	namespaces := findNamespacesInConfig(config)
+	namespaces := features.FindNamespacesInConfig(config)
 
 	// Should only find 3 unique namespaces despite 300 occurrences
 	if len(namespaces) != 3 {

@@ -6,45 +6,21 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
+	"github.com/krakend/mcp-server/internal/features"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// Feature represents a KrakenD feature
-type Feature struct {
-	ID             string                 `json:"id"`
-	Name           string                 `json:"name"`
-	Namespace      string                 `json:"namespace"`
-	Edition        string                 `json:"edition"` // "ce", "ee", or "both"
-	Category       string                 `json:"category"`
-	Description    string                 `json:"description"`
-	DocsURL        string                 `json:"docs_url"`
-	RequiredFields []string               `json:"required_fields"`
-	OptionalFields []string               `json:"optional_fields"`
-	ExampleConfig  map[string]interface{} `json:"example_config"`
-}
-
-// FeatureCatalog represents the complete feature catalog
-type FeatureCatalog struct {
-	Features    []Feature `json:"features"`
-	Version     string    `json:"version"`
-	LastUpdated string    `json:"last_updated"`
-}
-
-// EditionMatrix represents CE vs EE feature compatibility
-type EditionMatrix struct {
-	CEFeatures     []string                      `json:"ce_features"`
-	EEOnlyFeatures []string                      `json:"ee_only_features"`
-	FeatureDetails map[string]map[string]interface{} `json:"feature_details"`
-	Version        string                        `json:"version"`
-	LastUpdated    string                        `json:"last_updated"`
-	Notes          string                        `json:"notes"`
-}
+// Re-export types from internal/features for backward compatibility
+type (
+	Feature        = features.Feature
+	FeatureCatalog = features.FeatureCatalog
+	EditionMatrix  = features.EditionMatrix
+)
 
 var (
-	featureCatalog *FeatureCatalog
-	editionMatrix  *EditionMatrix
+	featureCatalog *features.FeatureCatalog
+	editionMatrix  *features.EditionMatrix
 )
 
 // LoadFeatureData loads feature catalog and edition matrix
@@ -173,7 +149,7 @@ func CheckEditionCompatibility(ctx context.Context, req *mcp.CallToolRequest, in
 	}
 
 	// Find all namespaces used in config
-	namespaces := findNamespacesInConfig(config)
+	namespaces := features.FindNamespacesInConfig(config)
 
 	// Initialize as empty slices (not nil) to ensure JSON marshals as [] instead of null
 	eeFeatures := []string{}
@@ -221,38 +197,6 @@ func CheckEditionCompatibility(ctx context.Context, req *mcp.CallToolRequest, in
 		FeatureDetails: featureDetails,
 		Message:        message,
 	}, nil
-}
-
-// findNamespacesInConfig recursively finds all unique namespaces in config
-func findNamespacesInConfig(data interface{}) []string {
-	seen := make(map[string]struct{})
-	collectNamespaces(data, seen)
-
-	// Convert map to slice
-	namespaces := make([]string, 0, len(seen))
-	for ns := range seen {
-		namespaces = append(namespaces, ns)
-	}
-	return namespaces
-}
-
-// collectNamespaces recursively collects namespaces into a map for deduplication
-func collectNamespaces(data interface{}, seen map[string]struct{}) {
-	switch v := data.(type) {
-	case map[string]interface{}:
-		for key, value := range v {
-			// Keys with '/' are likely namespaces
-			if strings.Contains(key, "/") {
-				seen[key] = struct{}{}
-			}
-			// Recurse into nested structures
-			collectNamespaces(value, seen)
-		}
-	case []interface{}:
-		for _, item := range v {
-			collectNamespaces(item, seen)
-		}
-	}
 }
 
 // RegisterFeatureTools registers all feature detection tools

@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/krakend/mcp-server/internal/features"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
@@ -298,25 +299,8 @@ func detectEnterpriseFeatures(configJSON string) bool {
 		}
 	}
 
-	// Parse config
-	var config map[string]interface{}
-	if err := json.Unmarshal([]byte(configJSON), &config); err != nil {
-		return false
-	}
-
-	// Find namespaces in config (reuses helper from features.go)
-	namespaces := findNamespacesInConfig(config)
-
-	// Check against EE-only features from edition matrix
-	for _, ns := range namespaces {
-		for _, eeNs := range editionMatrix.EEOnlyFeatures {
-			if ns == eeNs {
-				return true
-			}
-		}
-	}
-
-	return false
+	// Use centralized detection from internal/features
+	return features.DetectEnterpriseFeatures(configJSON, editionMatrix.EEOnlyFeatures)
 }
 
 // buildKrakenDCommand constructs a KrakenD command with FC support if detected
