@@ -199,12 +199,16 @@ func extractEmbeddedIndex() error {
 
 	// Extract llms-full.txt
 	if docsData, err := embeddedData.ReadFile("data/docs/llms-full.txt"); err == nil {
-		os.WriteFile(filepath.Join(docsPath, "llms-full.txt"), docsData, 0644)
+		if err := os.WriteFile(filepath.Join(docsPath, "llms-full.txt"), docsData, 0644); err != nil {
+			return fmt.Errorf("failed to extract llms-full.txt: %w", err)
+		}
 	}
 
 	// Extract cache.meta
 	if metaData, err := embeddedData.ReadFile("data/docs/cache.meta"); err == nil {
-		os.WriteFile(filepath.Join(docsPath, "cache.meta"), metaData, 0644)
+		if err := os.WriteFile(filepath.Join(docsPath, "cache.meta"), metaData, 0644); err != nil {
+			return fmt.Errorf("failed to extract cache.meta: %w", err)
+		}
 	}
 
 	log.Printf("✓ Embedded index and docs extracted to %s", dataDir)
@@ -269,6 +273,7 @@ func downloadDocumentation() error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close() // Close explicitly before early return
 		return fmt.Errorf("download failed with status: %d", resp.StatusCode)
 	}
 
@@ -318,6 +323,7 @@ func parseDocumentation() ([]DocChunk, error) {
 	var chunks []DocChunk
 	var currentChunk *DocChunk
 	var currentCategory string
+	var contentBuilder strings.Builder
 	chunkID := 0
 
 	for _, line := range lines {
@@ -326,7 +332,8 @@ func parseDocumentation() ([]DocChunk, error) {
 		// Detect headers (# Header, ## Subheader)
 		if strings.HasPrefix(line, "##") {
 			// Save previous chunk
-			if currentChunk != nil && currentChunk.Content != "" {
+			if currentChunk != nil && contentBuilder.Len() > 0 {
+				currentChunk.Content = contentBuilder.String()
 				chunks = append(chunks, *currentChunk)
 				chunkID++
 			}
@@ -338,14 +345,15 @@ func parseDocumentation() ([]DocChunk, error) {
 				Title:    title,
 				Section:  title,
 				Category: currentCategory,
-				Content:  "",
 			}
+			contentBuilder.Reset()
 		} else if strings.HasPrefix(line, "#") {
 			// Top-level category
 			currentCategory = strings.TrimSpace(strings.TrimPrefix(line, "#"))
 
 			// Save previous chunk
-			if currentChunk != nil && currentChunk.Content != "" {
+			if currentChunk != nil && contentBuilder.Len() > 0 {
+				currentChunk.Content = contentBuilder.String()
 				chunks = append(chunks, *currentChunk)
 				chunkID++
 			}
@@ -356,19 +364,20 @@ func parseDocumentation() ([]DocChunk, error) {
 				Title:    currentCategory,
 				Section:  currentCategory,
 				Category: currentCategory,
-				Content:  "",
 			}
+			contentBuilder.Reset()
 		} else if line != "" && currentChunk != nil {
-			// Add content to current chunk
-			if currentChunk.Content != "" {
-				currentChunk.Content += "\n"
+			// Add content to current chunk using Builder (O(n) instead of O(n²))
+			if contentBuilder.Len() > 0 {
+				contentBuilder.WriteString("\n")
 			}
-			currentChunk.Content += line
+			contentBuilder.WriteString(line)
 		}
 	}
 
 	// Save last chunk
-	if currentChunk != nil && currentChunk.Content != "" {
+	if currentChunk != nil && contentBuilder.Len() > 0 {
+		currentChunk.Content = contentBuilder.String()
 		chunks = append(chunks, *currentChunk)
 	}
 

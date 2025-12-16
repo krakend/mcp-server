@@ -223,27 +223,36 @@ func CheckEditionCompatibility(ctx context.Context, req *mcp.CallToolRequest, in
 	}, nil
 }
 
-// findNamespacesInConfig recursively finds all namespaces in config
+// findNamespacesInConfig recursively finds all unique namespaces in config
 func findNamespacesInConfig(data interface{}) []string {
-	var namespaces []string
+	seen := make(map[string]struct{})
+	collectNamespaces(data, seen)
 
+	// Convert map to slice
+	namespaces := make([]string, 0, len(seen))
+	for ns := range seen {
+		namespaces = append(namespaces, ns)
+	}
+	return namespaces
+}
+
+// collectNamespaces recursively collects namespaces into a map for deduplication
+func collectNamespaces(data interface{}, seen map[string]struct{}) {
 	switch v := data.(type) {
 	case map[string]interface{}:
 		for key, value := range v {
 			// Keys with '/' are likely namespaces
 			if strings.Contains(key, "/") {
-				namespaces = append(namespaces, key)
+				seen[key] = struct{}{}
 			}
 			// Recurse into nested structures
-			namespaces = append(namespaces, findNamespacesInConfig(value)...)
+			collectNamespaces(value, seen)
 		}
 	case []interface{}:
 		for _, item := range v {
-			namespaces = append(namespaces, findNamespacesInConfig(item)...)
+			collectNamespaces(item, seen)
 		}
 	}
-
-	return namespaces
 }
 
 // RegisterFeatureTools registers all feature detection tools

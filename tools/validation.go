@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -105,6 +106,18 @@ func DetectEnvironment() *ValidationEnvironment {
 	return env
 }
 
+// extractFirstPath extracts the first path string from a nested behavior map
+func extractFirstPath(data map[string]interface{}, key string) string {
+	if section, ok := data[key].(map[string]interface{}); ok {
+		if paths, ok := section["paths"].([]interface{}); ok && len(paths) > 0 {
+			if path, ok := paths[0].(string); ok {
+				return path
+			}
+		}
+	}
+	return ""
+}
+
 // DetectFlexibleConfiguration detects if project uses Flexible Configuration
 func DetectFlexibleConfiguration() *FlexibleConfigInfo {
 	fc := &FlexibleConfigInfo{
@@ -123,30 +136,9 @@ func DetectFlexibleConfiguration() *FlexibleConfigInfo {
 		if data, err := os.ReadFile("flexible_config.json"); err == nil {
 			var behavior map[string]interface{}
 			if json.Unmarshal(data, &behavior) == nil {
-				// Extract settings paths
-				if settings, ok := behavior["settings"].(map[string]interface{}); ok {
-					if paths, ok := settings["paths"].([]interface{}); ok && len(paths) > 0 {
-						if firstPath, ok := paths[0].(string); ok {
-							fc.SettingsDir = firstPath
-						}
-					}
-				}
-				// Extract templates paths
-				if templates, ok := behavior["templates"].(map[string]interface{}); ok {
-					if paths, ok := templates["paths"].([]interface{}); ok && len(paths) > 0 {
-						if firstPath, ok := paths[0].(string); ok {
-							fc.TemplatesDir = firstPath
-						}
-					}
-				}
-				// Extract partials paths
-				if partials, ok := behavior["partials"].(map[string]interface{}); ok {
-					if paths, ok := partials["paths"].([]interface{}); ok && len(paths) > 0 {
-						if firstPath, ok := paths[0].(string); ok {
-							fc.PartialsDir = firstPath
-						}
-					}
-				}
+				fc.SettingsDir = extractFirstPath(behavior, "settings")
+				fc.TemplatesDir = extractFirstPath(behavior, "templates")
+				fc.PartialsDir = extractFirstPath(behavior, "partials")
 			}
 		}
 
@@ -641,12 +633,22 @@ func validateWithNativeKrakenD(configJSON string, tempDir string) (*ValidationRe
 			tempDir = os.TempDir()
 		}
 
-		tempFile := filepath.Join(tempDir, "krakend-temp-config.json")
-		if err := os.WriteFile(tempFile, []byte(configJSON), 0600); err != nil {
+		tmpFile, err := os.CreateTemp(tempDir, "krakend-*.json")
+		if err != nil {
+			return nil, fmt.Errorf("failed to create temp file: %w", err)
+		}
+		tempFilePath := tmpFile.Name()
+		defer os.Remove(tempFilePath)
+
+		if _, err := tmpFile.Write([]byte(configJSON)); err != nil {
+			tmpFile.Close()
 			return nil, fmt.Errorf("failed to write temp file: %w", err)
 		}
-		configFile = tempFile
-		defer os.Remove(tempFile)
+		if err := tmpFile.Close(); err != nil {
+			return nil, fmt.Errorf("failed to close temp file: %w", err)
+		}
+
+		configFile = tempFilePath
 	}
 
 	// Run krakend check with FC support
@@ -679,9 +681,30 @@ func validateWithNativeKrakenD(configJSON string, tempDir string) (*ValidationRe
 
 	err := cmd.Run()
 	if err != nil {
-		// Parse krakend check output for errors
-		output := stderr.String() + stdout.String()
 		result.Valid = false
+
+		// Distinguish between different error types for better user guidance
+		if errors.Is(err, exec.ErrNotFound) {
+			result.Errors = append(result.Errors, ValidationError{
+				Message: "KrakenD binary not found in PATH. Please install KrakenD or ensure it's in your PATH.",
+				Code:    "KRAKEND_NOT_FOUND",
+			})
+			result.Summary = "KrakenD binary not found"
+			return result, fmt.Errorf("krakend binary not found: %w", err)
+		}
+
+		var pathErr *os.PathError
+		if errors.As(err, &pathErr) {
+			result.Errors = append(result.Errors, ValidationError{
+				Message: fmt.Sprintf("Permission denied or path error: %s", pathErr.Error()),
+				Code:    "PATH_ERROR",
+			})
+			result.Summary = "Cannot execute KrakenD"
+			return result, fmt.Errorf("krakend execution error: %w", err)
+		}
+
+		// Config validation error (krakend ran but found issues)
+		output := stderr.String() + stdout.String()
 		result.Errors = append(result.Errors, ValidationError{
 			Message: output,
 			Code:    "KRAKEND_CHECK_FAILED",
@@ -692,86 +715,6 @@ func validateWithNativeKrakenD(configJSON string, tempDir string) (*ValidationRe
 
 	result.Valid = true
 	result.Summary = "Configuration is valid (validated with native KrakenD)"
-	return result, nil
-}
-
-// validateWithDocker validates using Docker container
-func validateWithDocker(configJSON string, tempDir string) (*ValidationResult, error) {
-	env := DetectEnvironment()
-
-	var configFile string
-	var cmd *exec.Cmd
-
-	// If Flexible Configuration is detected, mount project directory
-	if env.FlexibleConfig != nil && env.FlexibleConfig.Detected && env.FlexibleConfig.BaseTemplate != "" {
-		// Get current working directory (project root)
-		cwd, err := os.Getwd()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get working directory: %w", err)
-		}
-
-		configFile = env.FlexibleConfig.BaseTemplate
-		cmd = buildDockerKrakenDCommand(env, "check", filepath.Join(cwd, configFile))
-	} else {
-		// Create temporary file for standard config
-		if tempDir == "" {
-			tempDir = os.TempDir()
-		}
-
-		tempFile := filepath.Join(tempDir, "krakend-temp-config.json")
-		if err := os.WriteFile(tempFile, []byte(configJSON), 0600); err != nil {
-			return nil, fmt.Errorf("failed to write temp file: %w", err)
-		}
-		defer os.Remove(tempFile)
-
-		// Run docker with krakend check (standard)
-		cmd = exec.Command("docker", "run", "--rm",
-			"-v", fmt.Sprintf("%s:/etc/krakend/krakend.json:ro", tempFile),
-			"krakend:latest",
-			"check", "-c", "/etc/krakend/krakend.json", "-l")
-	}
-
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	result := &ValidationResult{
-		Method:      "docker",
-		Errors:      []ValidationError{},
-		Warnings:    []ValidationWarning{},
-		Guidance:    ValidationGuidance,
-		Environment: env,
-	}
-
-	// Add FC info to result if detected
-	if env.FlexibleConfig != nil && env.FlexibleConfig.Detected {
-		result.Warnings = append(result.Warnings, ValidationWarning{
-			Message: env.FlexibleConfig.Explanation,
-			Level:   "info",
-		})
-		for _, implication := range env.FlexibleConfig.Implications {
-			result.Warnings = append(result.Warnings, ValidationWarning{
-				Message: implication,
-				Level:   "info",
-			})
-		}
-	}
-
-	err := cmd.Run()
-	if err != nil {
-		// Parse docker/krakend output
-		output := stderr.String() + stdout.String()
-		result.Valid = false
-		result.Errors = append(result.Errors, ValidationError{
-			Message: output,
-			Code:    "KRAKEND_CHECK_FAILED",
-		})
-		result.Summary = "KrakenD validation failed (Docker)"
-		return result, nil
-	}
-
-	result.Valid = true
-	result.Summary = "Configuration is valid (validated with KrakenD via Docker)"
 	return result, nil
 }
 
@@ -815,15 +758,24 @@ func validateWithDockerVersion(configJSON string, tempDir string, targetVersion 
 			tempDir = os.TempDir()
 		}
 
-		tempFile := filepath.Join(tempDir, "krakend-temp-config.json")
-		if err := os.WriteFile(tempFile, []byte(configJSON), 0600); err != nil {
+		tmpFile, err := os.CreateTemp(tempDir, "krakend-*.json")
+		if err != nil {
+			return nil, fmt.Errorf("failed to create temp file: %w", err)
+		}
+		tempFilePath := tmpFile.Name()
+		defer os.Remove(tempFilePath)
+
+		if _, err := tmpFile.Write([]byte(configJSON)); err != nil {
+			tmpFile.Close()
 			return nil, fmt.Errorf("failed to write temp file: %w", err)
 		}
-		defer os.Remove(tempFile)
+		if err := tmpFile.Close(); err != nil {
+			return nil, fmt.Errorf("failed to close temp file: %w", err)
+		}
 
 		// Run docker with krakend check using version-specific image
 		cmd = exec.Command("docker", "run", "--rm",
-			"-v", fmt.Sprintf("%s:/etc/krakend/krakend.json:ro", tempFile),
+			"-v", fmt.Sprintf("%s:/etc/krakend/krakend.json:ro", tempFilePath),
 			dockerImage,
 			"check", "-c", "/etc/krakend/krakend.json", "-l")
 	}
