@@ -35,7 +35,7 @@ Thumbs.db
 build/
 
 # Temporary build files
-cmd/indexer/
+cmd/indexer/indexer
 
 # Documentation (downloaded during build, then embedded)
 tools/data/docs/llms-full.txt

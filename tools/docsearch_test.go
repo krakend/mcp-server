@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/krakend/mcp-server/internal/indexing"
 )
 
 func TestParseDocumentation_EmptyContent(t *testing.T) {
@@ -22,14 +24,7 @@ func TestParseDocumentation_EmptyContent(t *testing.T) {
 	testFile := filepath.Join(docsDir, "llms-full.txt")
 	os.WriteFile(testFile, []byte(""), 0644)
 
-	// Mock dataDir
-	origDataDir := dataDir
-	dataDir = tmpDir
-	defer func() {
-		dataDir = origDataDir
-	}()
-
-	chunks, err := parseDocumentation()
+	chunks, err := indexing.ParseDocumentation(testFile)
 
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -69,14 +64,7 @@ Content for category 2
 	os.MkdirAll(filepath.Dir(testFile), 0755)
 	os.WriteFile(testFile, []byte(content), 0644)
 
-	// Mock dataDir
-	origDataDir := dataDir
-	dataDir = tmpDir
-	defer func() {
-		dataDir = origDataDir
-	}()
-
-	chunks, err := parseDocumentation()
+	chunks, err := indexing.ParseDocumentation(testFile)
 
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -89,8 +77,8 @@ Content for category 2
 
 	// Check first chunk
 	if len(chunks) > 0 {
-		if chunks[0].Title != "Category 1" {
-			t.Errorf("Expected title 'Category 1', got '%s'", chunks[0].Title)
+		if chunks[0].Subcategory != "Category 1" {
+			t.Errorf("Expected title 'Category 1', got '%s'", chunks[0].Subcategory)
 		}
 		if !strings.Contains(chunks[0].Content, "Some content for category 1") {
 			t.Errorf("Expected content to contain 'Some content for category 1'")
@@ -119,34 +107,40 @@ func TestParseDocumentation_StringBuilderOptimization(t *testing.T) {
 	os.MkdirAll(filepath.Dir(testFile), 0755)
 	os.WriteFile(testFile, []byte(content), 0644)
 
-	// Mock dataDir
-	origDataDir := dataDir
-	dataDir = tmpDir
-	defer func() {
-		dataDir = origDataDir
-	}()
-
-	chunks, err := parseDocumentation()
+	chunks, err := indexing.ParseDocumentation(testFile)
 
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	if len(chunks) != 1 {
-		t.Errorf("Expected 1 chunk, got %d", len(chunks))
+	// With intelligent chunking, large content should be split into multiple chunks
+	if len(chunks) < 2 {
+		t.Errorf("Expected multiple chunks due to large content, got %d", len(chunks))
 	}
 
-	// Verify content contains first and last lines
-	if len(chunks) > 0 {
-		if !strings.Contains(chunks[0].Content, "Line number 0 with some content") {
-			t.Error("Expected content to contain first line")
+	// Verify all content is preserved across chunks
+	allContent := ""
+	for _, chunk := range chunks {
+		allContent += chunk.Content
+	}
+
+	if !strings.Contains(allContent, "Line number 0 with some content") {
+		t.Error("Expected content to contain first line")
+	}
+	if !strings.Contains(allContent, "Line number 999 with some content") {
+		t.Error("Expected content to contain last line")
+	}
+	if !strings.Contains(allContent, "Line number 500") {
+		t.Error("Expected content to contain middle line")
+	}
+
+	// Verify all chunks have metadata enrichment
+	for i, chunk := range chunks {
+		if chunk.TokenCount == 0 {
+			t.Errorf("Chunk %d missing token count", i)
 		}
-		if !strings.Contains(chunks[0].Content, "Line number 999 with some content") {
-			t.Error("Expected content to contain last line")
-		}
-		// Check that lines are roughly in order
-		if !strings.Contains(chunks[0].Content, "Line number 500") {
-			t.Error("Expected content to contain middle line")
+		if chunk.TokenCount > indexing.MaxChunkTokens*2 {
+			t.Errorf("Chunk %d has %d tokens, exceeds reasonable limit", i, chunk.TokenCount)
 		}
 	}
 }
@@ -174,14 +168,7 @@ Line 3
 	os.MkdirAll(filepath.Dir(testFile), 0755)
 	os.WriteFile(testFile, []byte(content), 0644)
 
-	// Mock dataDir
-	origDataDir := dataDir
-	dataDir = tmpDir
-	defer func() {
-		dataDir = origDataDir
-	}()
-
-	chunks, err := parseDocumentation()
+	chunks, err := indexing.ParseDocumentation(testFile)
 
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -203,6 +190,70 @@ Line 3
 		if nonEmptyLines != 3 {
 			t.Errorf("Expected 3 non-empty lines, got %d", nonEmptyLines)
 		}
+	}
+}
+
+func TestParseDocumentation_MarkdownLinksStripped(t *testing.T) {
+	content := `# [Category with Link](https://example.com/category)
+
+Content under linked category
+
+## [Section with Link](https://example.com/section)
+
+Content under linked section
+`
+
+	// Create temp directory
+	tmpDir, err := os.MkdirTemp("", "krakend-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Write test file
+	testFile := filepath.Join(tmpDir, "docs", "llms-full.txt")
+	os.MkdirAll(filepath.Dir(testFile), 0755)
+	os.WriteFile(testFile, []byte(content), 0644)
+
+	chunks, err := indexing.ParseDocumentation(testFile)
+
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if len(chunks) != 2 {
+		t.Fatalf("Expected 2 chunks, got %d", len(chunks))
+	}
+
+	// Check first chunk (category)
+	if chunks[0].Page != "Category with Link" {
+		t.Errorf("Expected category 'Category with Link', got '%s'", chunks[0].Page)
+	}
+	if chunks[0].Subcategory != "Category with Link" {
+		t.Errorf("Expected title 'Category with Link', got '%s'", chunks[0].Subcategory)
+	}
+	if strings.Contains(chunks[0].Page, "](") {
+		t.Error("Category should not contain markdown link syntax")
+	}
+	if strings.Contains(chunks[0].URL, "](") {
+		t.Error("URL should not contain markdown link syntax")
+	}
+
+	// Check second chunk (section)
+	if chunks[1].Category != "Section with Link" {
+		t.Errorf("Expected section 'Section with Link', got '%s'", chunks[1].Category)
+	}
+	if strings.Contains(chunks[1].Category, "](") {
+		t.Error("Section should not contain markdown link syntax")
+	}
+	if strings.Contains(chunks[1].URL, "](") {
+		t.Error("URL should not contain markdown link syntax")
+	}
+
+	// Verify URL is properly formatted - extracted from H1 with subsection anchor
+	expectedURL := "https://example.com/category#section-with-link"
+	if chunks[1].URL != expectedURL {
+		t.Errorf("Expected URL '%s', got '%s'", expectedURL, chunks[1].URL)
 	}
 }
 
