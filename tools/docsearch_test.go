@@ -284,12 +284,4 @@ func TestExtractEmbeddedIndex_ErrorHandling(t *testing.T) {
 	}
 }
 
-func TestSearchDocumentation_InvalidQuery(t *testing.T) {
-	// Test that search handles invalid queries gracefully
-	// This is a placeholder - full search testing would require index setup
-
-	// Verify the function signature exists and can be called
-	// (actual search testing would need more setup)
-	t.Skip("Search testing requires full index setup - placeholder test")
-}
 
