@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -397,12 +398,6 @@ func TestSubdivideChunk(t *testing.T) {
 }
 
 func TestParseDocumentationIntegration(t *testing.T) {
-	// This test requires actual documentation file
-	// Skip if dataDir is not set or file doesn't exist
-	if dataDir == "" {
-		t.Skip("dataDir not initialized")
-	}
-
 	// Create a temporary test file
 	testContent := `# Authentication
 This is the authentication section.
@@ -422,15 +417,20 @@ This section covers rate limiting.
 Details about token bucket algorithm.
 ` + strings.Repeat("Explanation of token bucket rate limiting. ", 150)
 
-	// Save original file if exists
-	testFile := docsFile
-	fullPath := dataDir + "/" + testFile
+	// Create temp file
+	tmpFile, err := os.CreateTemp("", "docs-test-*.txt")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
 
 	// Write test content
-	if err := saveTestFile(fullPath, testContent); err != nil {
-		t.Skipf("Cannot create test file: %v", err)
+	if _, err := tmpFile.WriteString(testContent); err != nil {
+		t.Fatalf("Failed to write test content: %v", err)
 	}
-	defer cleanupTestFile(fullPath)
+	tmpFile.Close()
+
+	fullPath := tmpFile.Name()
 
 	// Parse
 	chunks, err := indexing.ParseDocumentation(fullPath)
