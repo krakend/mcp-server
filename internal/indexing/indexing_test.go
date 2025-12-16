@@ -1,4 +1,4 @@
-package tools
+package indexing_test
 
 import (
 	"os"
