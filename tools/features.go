@@ -51,7 +51,7 @@ var (
 func LoadFeatureData() error {
 	// Load feature catalog
 	// Try embedded data first (standalone binary), then filesystem (development)
-	catalogData, err := embeddedData.ReadFile("data/features/catalog.json")
+	catalogData, err := defaultDataProvider.ReadFile("data/features/catalog.json")
 	if err != nil {
 		// Fallback to filesystem (development mode)
 		catalogPath := filepath.Join(dataDir, "features/catalog.json")
@@ -69,7 +69,7 @@ func LoadFeatureData() error {
 
 	// Load edition matrix
 	// Try embedded data first (standalone binary), then filesystem (development)
-	matrixData, err := embeddedData.ReadFile("data/editions/matrix.json")
+	matrixData, err := defaultDataProvider.ReadFile("data/editions/matrix.json")
 	if err != nil {
 		// Fallback to filesystem (development mode)
 		matrixPath := filepath.Join(dataDir, "editions/matrix.json")

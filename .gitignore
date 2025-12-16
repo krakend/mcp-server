@@ -40,7 +40,10 @@ cmd/indexer/
 # Documentation (downloaded during build, then embedded)
 tools/data/docs/llms-full.txt
 tools/data/docs/cache.meta
-tools/data/search/
+tools/data/search/*
+!tools/data/search/index/
+tools/data/search/index/*
+!tools/data/search/index/.gitkeep
 
 # Temporary files
 *.tmp

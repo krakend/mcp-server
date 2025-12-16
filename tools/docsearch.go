@@ -198,14 +198,14 @@ func extractEmbeddedIndex() error {
 	os.MkdirAll(docsPath, 0755)
 
 	// Extract llms-full.txt
-	if docsData, err := embeddedData.ReadFile("data/docs/llms-full.txt"); err == nil {
+	if docsData, err := defaultDataProvider.ReadFile("data/docs/llms-full.txt"); err == nil {
 		if err := os.WriteFile(filepath.Join(docsPath, "llms-full.txt"), docsData, 0644); err != nil {
 			return fmt.Errorf("failed to extract llms-full.txt: %w", err)
 		}
 	}
 
 	// Extract cache.meta
-	if metaData, err := embeddedData.ReadFile("data/docs/cache.meta"); err == nil {
+	if metaData, err := defaultDataProvider.ReadFile("data/docs/cache.meta"); err == nil {
 		if err := os.WriteFile(filepath.Join(docsPath, "cache.meta"), metaData, 0644); err != nil {
 			return fmt.Errorf("failed to extract cache.meta: %w", err)
 		}
@@ -218,7 +218,7 @@ func extractEmbeddedIndex() error {
 
 // extractEmbeddedDir recursively extracts files from embedded FS to local filesystem
 func extractEmbeddedDir(embedPath, localPath string) error {
-	entries, err := embeddedData.ReadDir(embedPath)
+	entries, err := defaultDataProvider.ReadDir(embedPath)
 	if err != nil {
 		return fmt.Errorf("failed to read directory %s: %w", embedPath, err)
 	}
@@ -237,7 +237,7 @@ func extractEmbeddedDir(embedPath, localPath string) error {
 			}
 		} else {
 			// Extract file
-			data, err := embeddedData.ReadFile(embeddedFile)
+			data, err := defaultDataProvider.ReadFile(embeddedFile)
 			if err != nil {
 				return fmt.Errorf("failed to read embedded file %s: %w", embeddedFile, err)
 			}
