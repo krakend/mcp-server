@@ -13,7 +13,7 @@
 set -e
 
 # Latest version (update on each release)
-VERSION="0.6.1"
+VERSION="0.6.2"
 
 # Installation directory
 INSTALL_DIR="/usr/local/bin"
