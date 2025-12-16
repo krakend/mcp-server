@@ -117,95 +117,25 @@ EOF
 # Step 2: Index documentation
 log "Step 2: Indexing documentation..."
 
-# Build temporary indexer
-mkdir -p "$PROJECT_ROOT/cmd/indexer"
-cat > "$PROJECT_ROOT/cmd/indexer/main.go" <<'INDEXER_EOF'
-package main
-
-import (
-	"bufio"
-	"fmt"
-	"log"
-	"os"
-	"strings"
-
-	"github.com/blevesearch/bleve/v2"
-)
-
-func main() {
-	if len(os.Args) != 3 {
-		fmt.Fprintf(os.Stderr, "Usage: %s <docs-file> <index-dir>\n", os.Args[0])
-		os.Exit(1)
-	}
-
-	docsFile := os.Args[1]
-	indexDir := os.Args[2]
-
-	// Remove existing index
-	os.RemoveAll(indexDir)
-
-	// Create index
-	mapping := bleve.NewIndexMapping()
-	index, err := bleve.New(indexDir, mapping)
-	if err != nil {
-		log.Fatalf("Failed to create index: %v", err)
-	}
-	defer index.Close()
-
-	// Read and index
-	file, err := os.Open(docsFile)
-	if err != nil {
-		log.Fatalf("Failed to open file: %v", err)
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	scanner.Buffer(make([]byte, 1024*1024), 10*1024*1024)
-
-	var chunk strings.Builder
-	chunkID := 0
-	lineCount := 0
-
-	for scanner.Scan() {
-		chunk.WriteString(scanner.Text())
-		chunk.WriteString("\n")
-		lineCount++
-
-		if lineCount >= 500 {
-			doc := map[string]interface{}{
-				"id":      fmt.Sprintf("chunk_%d", chunkID),
-				"content": chunk.String(),
-			}
-			index.Index(doc["id"].(string), doc)
-			chunk.Reset()
-			lineCount = 0
-			chunkID++
-		}
-	}
-
-	if chunk.Len() > 0 {
-		doc := map[string]interface{}{
-			"id":      fmt.Sprintf("chunk_%d", chunkID),
-			"content": chunk.String(),
-		}
-		index.Index(doc["id"].(string), doc)
-		chunkID++
-	}
-
-	log.Printf("Indexed %d chunks", chunkID)
-}
-INDEXER_EOF
-
-mkdir -p "$PROJECT_ROOT/cmd/indexer"
+# Build indexer command (uses optimized chunking from internal/indexing)
 cd "$PROJECT_ROOT"
-go build -o "$PROJECT_ROOT/cmd/indexer/indexer" "$PROJECT_ROOT/cmd/indexer/main.go" >/dev/null 2>&1
+go build -o "$PROJECT_ROOT/cmd/indexer/indexer" "$PROJECT_ROOT/cmd/indexer/main.go"
 
+if [ ! -f "$PROJECT_ROOT/cmd/indexer/indexer" ]; then
+    log_error "Failed to build indexer"
+    exit 1
+fi
+
+# Run indexer
 "$PROJECT_ROOT/cmd/indexer/indexer" "$DOCS_DIR/llms-full.txt" "$SEARCH_DIR/index"
+
 # Give Bleve time to finish async writes
 sleep 2
-rm -rf "$PROJECT_ROOT/cmd/indexer"
 
-log_success "Documentation indexed"
+# Clean up indexer binary
+rm -f "$PROJECT_ROOT/cmd/indexer/indexer"
+
+log_success "Documentation indexed with optimized chunking (v2 schema)"
 
 # Step 3: Build binary
 log "Step 3: Building binary..."

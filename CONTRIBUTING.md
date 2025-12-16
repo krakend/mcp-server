@@ -109,12 +109,47 @@ func RegisterMyTool(server *mcp.Server) error {
 
 ## Testing
 
-**Status**: Automated tests are planned for the future (see README.md Development section).
+We have an automated test suite with CI/CD integration. Current coverage: **22%** (minimum threshold: 20%).
 
-Currently, testing is done manually:
-- Build the server with `./scripts/build.sh`
-- Test with real KrakenD configurations
-- Verify all 10 MCP tools work correctly
+### Running Tests
+
+```bash
+# Run all tests
+go test ./... -v
+
+# Run tests with race detector (recommended)
+go test ./... -race
+
+# Run tests with coverage report
+go test ./... -cover -coverprofile=coverage.out
+
+# View coverage in browser
+go tool cover -html=coverage.out
+```
+
+### Test Requirements
+
+- All PRs must pass existing tests
+- New features should include unit tests
+- Aim to maintain or improve test coverage
+- Use the interface pattern for testable code (see `tools/dataprovider.go`)
+
+### What's Covered
+
+Current test coverage includes:
+- Configuration validation logic
+- Feature namespace extraction
+- Edition detection (CE vs EE)
+- Flexible Configuration detection
+- Documentation parsing
+- Data provider abstraction with mocks
+
+### Manual Testing
+
+In addition to automated tests, manually test with:
+- Real KrakenD configurations (CE and EE)
+- Different KrakenD versions (2.0-2.7)
+- Various client environments (Claude Code, VS Code, Cursor)
 
 When adding new features, test thoroughly with various scenarios before submitting a PR.
 

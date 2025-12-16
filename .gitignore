@@ -6,6 +6,7 @@
 *.dylib
 krakend-mcp-server
 krakend-mcp-*
+mcp-server
 
 # Test binary, built with `go test -c`
 *.test
@@ -34,12 +35,15 @@ Thumbs.db
 build/
 
 # Temporary build files
-cmd/indexer/
+cmd/indexer/indexer
 
 # Documentation (downloaded during build, then embedded)
 tools/data/docs/llms-full.txt
 tools/data/docs/cache.meta
-tools/data/search/
+tools/data/search/*
+!tools/data/search/index/
+tools/data/search/index/*
+!tools/data/search/index/.gitkeep
 
 # Temporary files
 *.tmp

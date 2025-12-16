@@ -502,19 +502,44 @@ Examples:
 This project is in active development. Current status:
 
 - ✅ Core MCP server implementation
-- ✅ All 10 tools functional and tested manually
+- ✅ All 10 tools functional and tested
 - ✅ Cross-platform builds (macOS, Linux, Windows)
 - ✅ Embedded documentation with offline search
-- ⏳ **Automated testing suite** (pending)
+- ✅ **Automated testing suite** with CI/CD (22% coverage, threshold: 20%)
 
 ### Testing
 
-Automated tests are planned for the future. Priority areas:
+Run the test suite:
 
+```bash
+# Run all tests
+go test ./... -v
+
+# Run tests with race detector (recommended)
+go test ./... -race
+
+# Run tests with coverage report
+go test ./... -cover -coverprofile=coverage.out
+
+# View coverage in browser
+go tool cover -html=coverage.out
+```
+
+Current test coverage: **22%** (minimum threshold: 20%)
+
+**What's tested:**
+- Configuration validation logic
+- Feature namespace extraction and deduplication
+- Edition detection (CE vs EE)
+- Flexible Configuration detection
+- Documentation parsing and indexing
+- Data provider abstraction (interface pattern with mocks)
+
+**Future improvements:**
 1. **Integration tests** for each MCP tool with real-world configs
-2. **Unit tests** for edition detection and feature parsing logic
-3. **E2E tests** for the complete MCP protocol flow
-4. **Golden file tests** for complex validation outputs
+2. **E2E tests** for the complete MCP protocol flow
+3. **Golden file tests** for complex validation outputs
+4. Increase coverage to 50%+
 
 Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 

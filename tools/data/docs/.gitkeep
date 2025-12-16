@@ -1,0 +1,2 @@
+# Placeholder to satisfy go:embed directive
+# Real documentation is downloaded by scripts/build.sh and gitignored
