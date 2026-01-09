@@ -200,6 +200,116 @@ func releaseLock() error {
 	return nil
 }
 
+// acquireLockWithContext attempts to acquire lock with context timeout
+// This is used for non-blocking lock acquisition during initialization
+func acquireLockWithContext(ctx context.Context) error {
+	lockPath := filepath.Join(dataDir, lockFile)
+	ourPID := os.Getpid()
+
+	// Check if we already have the lock
+	if data, err := os.ReadFile(lockPath); err == nil {
+		if pidStr := strings.TrimSpace(string(data)); pidStr != "" {
+			if pid, err := strconv.Atoi(pidStr); err == nil && pid == ourPID {
+				return nil // We already hold it
+			}
+		}
+	}
+
+	ticker := time.NewTicker(lockRetryWait)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("timeout acquiring lock: %w", ctx.Err())
+		case <-ticker.C:
+			// Try to clean stale lock
+			if err := cleanStaleLock(); err != nil {
+				continue // Lock held by active process
+			}
+
+			// Try to create lock file
+			err := os.WriteFile(lockPath, []byte(strconv.Itoa(ourPID)), 0644)
+			if err != nil {
+				return fmt.Errorf("failed to create lock file: %w", err)
+			}
+
+			log.Printf("✓ Index lock acquired (PID %d)", ourPID)
+			return nil // Success
+		}
+	}
+}
+
+// copyDir recursively copies a directory from src to dst
+func copyDir(src, dst string) error {
+	// Get source directory info
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		return fmt.Errorf("failed to stat source directory: %w", err)
+	}
+
+	// Create destination directory with same permissions
+	if err := os.MkdirAll(dst, srcInfo.Mode()); err != nil {
+		return fmt.Errorf("failed to create destination directory: %w", err)
+	}
+
+	// Read source directory
+	entries, err := os.ReadDir(src)
+	if err != nil {
+		return fmt.Errorf("failed to read source directory: %w", err)
+	}
+
+	// Copy each entry
+	for _, entry := range entries {
+		srcPath := filepath.Join(src, entry.Name())
+		dstPath := filepath.Join(dst, entry.Name())
+
+		if entry.IsDir() {
+			// Recursively copy subdirectory
+			if err := copyDir(srcPath, dstPath); err != nil {
+				return err
+			}
+		} else {
+			// Copy file
+			if err := copyFile(srcPath, dstPath); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// copyFile copies a single file from src to dst
+func copyFile(src, dst string) error {
+	// Open source file
+	srcFile, err := os.Open(src)
+	if err != nil {
+		return fmt.Errorf("failed to open source file: %w", err)
+	}
+	defer srcFile.Close()
+
+	// Get source file info for permissions
+	srcInfo, err := srcFile.Stat()
+	if err != nil {
+		return fmt.Errorf("failed to stat source file: %w", err)
+	}
+
+	// Create destination file
+	dstFile, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, srcInfo.Mode())
+	if err != nil {
+		return fmt.Errorf("failed to create destination file: %w", err)
+	}
+	defer dstFile.Close()
+
+	// Copy contents
+	if _, err := io.Copy(dstFile, srcFile); err != nil {
+		return fmt.Errorf("failed to copy file contents: %w", err)
+	}
+
+	return nil
+}
+
 // SearchResult represents a search result with score
 type SearchResult struct {
 	Chunk indexing.DocChunk `json:"chunk"`
@@ -261,74 +371,87 @@ func InitializeDocSearch() error {
 		indexMgr = &indexHolder{}
 	}
 
-	indexPath := filepath.Join(dataDir, indexDir)
+	// Master index path (shared, source of truth)
+	masterIndexPath := filepath.Join(dataDir, indexDir)
 
-	// Acquire lock before accessing index
-	log.Printf("Acquiring index lock...")
-	lockStart := time.Now()
-	if err := acquireLock(); err != nil {
-		return fmt.Errorf("failed to acquire index lock: %w", err)
-	}
-	log.Printf("Lock acquired in %v", time.Since(lockStart).Round(time.Millisecond))
+	// Process-specific temporary index path (for reading without conflicts)
+	ourPID := os.Getpid()
+	tempIndexPath := filepath.Join(os.TempDir(), fmt.Sprintf("krakend-mcp-%d", ourPID), "index")
 
-	// Strategy 1: Try to open local index (from previous refresh or embedded extraction)
-	if _, err := os.Stat(indexPath); err == nil {
-		// Check index schema version
+	// Step 1: Ensure master index exists and is up-to-date
+	if stat, err := os.Stat(masterIndexPath); err == nil {
+		// Master index exists - check if needs refresh
+		indexAge := time.Since(stat.ModTime())
+		isStale := indexAge > cacheTTL // >7 days
+
 		currentVersion := getIndexVersion()
-		if currentVersion != indexing.IndexSchemaVersion {
-			log.Printf("Index schema version mismatch (have: v%d, want: v%d), invalidating old index...",
-				currentVersion, indexing.IndexSchemaVersion)
-			os.RemoveAll(indexPath)
-			os.Remove(filepath.Join(dataDir, indexVersionFile))
-		} else {
-			openStart := time.Now()
-			index, err := bleve.Open(indexPath)
-			if err == nil {
-				wrapped := NewBleveIndexWrapper(index)
-				indexMgr.current.Store(&wrapped)
-				count, _ := wrapped.DocCount()
-				elapsed := time.Since(startTime).Round(time.Millisecond)
-				log.Printf("✓ Documentation search initialized (%d docs, local index v%d) in %v",
-					count, indexing.IndexSchemaVersion, elapsed)
+		wrongVersion := currentVersion != indexing.IndexSchemaVersion
 
-				// Check if local cache is stale and suggest refresh
-				if needsRefresh() {
-					log.Printf("ℹ️  Local documentation is >7 days old. Consider using refresh_documentation_index tool to update.")
-				}
-
-				return nil
+		// If index needs refresh (stale or wrong version)
+		if isStale || wrongVersion {
+			if isStale {
+				log.Printf("Master index is %v old (>7 days), attempting refresh...",
+					indexAge.Round(24*time.Hour))
+			} else {
+				log.Printf("Master index schema mismatch (v%d vs v%d), attempting refresh...",
+					currentVersion, indexing.IndexSchemaVersion)
 			}
 
-			// Index corrupted, remove it
-			log.Printf("Warning: Local index corrupted (open failed in %v), removing...", time.Since(openStart).Round(time.Millisecond))
-			os.RemoveAll(indexPath)
-			os.Remove(filepath.Join(dataDir, indexVersionFile))
+			// Try to acquire lock with SHORT timeout (non-blocking)
+			lockCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+
+			if err := acquireLockWithContext(lockCtx); err == nil {
+				// We got the lock - refresh master index from remote
+				defer releaseLock()
+
+				log.Printf("Refreshing master index from remote...")
+				if err := downloadAndReindexDocs(); err != nil {
+					log.Printf("Warning: Refresh failed: %v, using existing master index", err)
+				} else {
+					log.Printf("✓ Master index refreshed successfully")
+				}
+			} else {
+				// Another process is refreshing - use existing master
+				log.Printf("Another process is refreshing master index, will use current version")
+			}
 		}
+	} else {
+		// No master index - extract embedded
+		log.Printf("No master index found, extracting embedded documentation...")
+		extractStart := time.Now()
+
+		if err := extractEmbeddedIndex(); err != nil {
+			return fmt.Errorf("failed to extract embedded index: %w", err)
+		}
+		log.Printf("Embedded index extracted in %v", time.Since(extractStart).Round(time.Millisecond))
 	}
 
-	// Strategy 2: Extract embedded index to local storage
-	log.Printf("No local index found, extracting embedded documentation...")
-	extractStart := time.Now()
+	// Step 2: Copy master index to process-specific temp directory
+	log.Printf("Copying master index to process-specific temp directory...")
+	copyStart := time.Now()
 
-	if err := extractEmbeddedIndex(); err != nil {
-		return fmt.Errorf("failed to extract embedded index: %w", err)
+	// Clean up any existing temp index for this PID
+	os.RemoveAll(filepath.Dir(tempIndexPath))
+
+	if err := copyDir(masterIndexPath, tempIndexPath); err != nil {
+		return fmt.Errorf("failed to copy master index to temp: %w", err)
 	}
-	log.Printf("Extraction completed in %v", time.Since(extractStart).Round(time.Millisecond))
+	log.Printf("Index copied in %v", time.Since(copyStart).Round(time.Millisecond))
 
-	// Open the extracted index
+	// Step 3: Open the process-specific copy (no conflicts with other processes)
 	openStart := time.Now()
-	index, err := bleve.Open(indexPath)
+	index, err := bleve.Open(tempIndexPath)
 	if err != nil {
-		return fmt.Errorf("failed to open extracted index: %w", err)
+		return fmt.Errorf("failed to open temp index: %w", err)
 	}
-	log.Printf("Index opened in %v", time.Since(openStart).Round(time.Millisecond))
+	log.Printf("Temp index opened in %v", time.Since(openStart).Round(time.Millisecond))
 
 	wrapped := NewBleveIndexWrapper(index)
 	indexMgr.current.Store(&wrapped)
 	count, _ := wrapped.DocCount()
 	elapsed := time.Since(startTime).Round(time.Millisecond)
-	log.Printf("✓ Documentation search initialized (%d docs, embedded index) in %v", count, elapsed)
-	log.Printf("ℹ️  Using embedded documentation (build-time). Use refresh_documentation_index to get latest docs.")
+	log.Printf("✓ Documentation search initialized (%d docs, process temp index) in %v", count, elapsed)
 
 	return nil
 }
@@ -644,6 +767,35 @@ func indexChunks(chunks []indexing.DocChunk) error {
 	return nil
 }
 
+// downloadAndReindexDocs downloads documentation from remote and rebuilds the index
+// Assumes lock is already held by caller for inter-process coordination
+func downloadAndReindexDocs() error {
+	// Download documentation
+	downloadStart := time.Now()
+	if err := downloadDocumentation(); err != nil {
+		return fmt.Errorf("download failed: %w", err)
+	}
+	log.Printf("Download completed in %v", time.Since(downloadStart).Round(time.Millisecond))
+
+	// Parse into chunks
+	parseStart := time.Now()
+	fullPath := filepath.Join(dataDir, docsFile)
+	chunks, err := indexing.ParseDocumentation(fullPath)
+	if err != nil {
+		return fmt.Errorf("parse failed: %w", err)
+	}
+	log.Printf("Parsed %d documentation chunks (avg: %d tokens, %d over limit)",
+		len(chunks), averageTokens(chunks), countOversized(chunks))
+	log.Printf("Parse completed in %v", time.Since(parseStart).Round(time.Millisecond))
+
+	// Create search index (this closes and reopens the global index)
+	if err := indexChunks(chunks); err != nil {
+		return fmt.Errorf("indexing failed: %w", err)
+	}
+
+	return nil
+}
+
 // refreshDocumentationIndex downloads and re-indexes documentation
 func refreshDocumentationIndex(force bool) error {
 	startTime := time.Now()
@@ -670,29 +822,11 @@ func refreshDocumentationIndex(force bool) error {
 	if err := acquireLock(); err != nil {
 		return fmt.Errorf("failed to acquire lock for refresh: %w", err)
 	}
-	// Note: Lock will be released by CloseDocSearch() when process exits
+	defer releaseLock() // Release lock immediately after refresh completes
 
-	// Download documentation
-	downloadStart := time.Now()
-	if err := downloadDocumentation(); err != nil {
-		return fmt.Errorf("download failed: %w", err)
-	}
-	log.Printf("Download completed in %v", time.Since(downloadStart).Round(time.Millisecond))
-
-	// Parse into chunks
-	parseStart := time.Now()
-	fullPath := filepath.Join(dataDir, docsFile)
-	chunks, err := indexing.ParseDocumentation(fullPath)
-	if err != nil {
-		return fmt.Errorf("parse failed: %w", err)
-	}
-	log.Printf("Parsed %d documentation chunks (avg: %d tokens, %d over limit)",
-		len(chunks), averageTokens(chunks), countOversized(chunks))
-	log.Printf("Parse completed in %v", time.Since(parseStart).Round(time.Millisecond))
-
-	// Create search index (this closes and reopens the global index)
-	if err := indexChunks(chunks); err != nil {
-		return fmt.Errorf("indexing failed: %w", err)
+	// Download, parse, and re-index documentation
+	if err := downloadAndReindexDocs(); err != nil {
+		return fmt.Errorf("refresh failed: %w", err)
 	}
 
 	elapsed := time.Since(startTime).Round(time.Millisecond)
@@ -881,18 +1015,13 @@ func CloseDocSearch() error {
 			closeErr = index.Close()
 			if closeErr != nil {
 				log.Printf("Error closing doc index: %v", closeErr)
-			} else {
-				log.Printf("✓ Doc index closed successfully")
 			}
 		}
 	}
 
-	// Always attempt to release inter-process lock, even if close failed
-	if err := releaseLock(); err != nil {
-		log.Printf("Error releasing lock: %v", err)
-		if closeErr == nil {
-			closeErr = err
-		}
+	// No lock to release - lock is only held during refresh operations
+	if closeErr == nil {
+		log.Printf("✓ Doc index closed successfully")
 	}
 
 	return closeErr
