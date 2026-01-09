@@ -41,17 +41,17 @@ This script will:
 
 ```bash
 # macOS Apple Silicon
-curl -L -o krakend-mcp-server https://github.com/krakend/mcp-server/releases/download/v0.6.1/krakend-mcp-darwin-arm64
+curl -L -o krakend-mcp-server https://github.com/krakend/mcp-server/releases/download/v0.6.3/krakend-mcp-darwin-arm64
 chmod +x krakend-mcp-server
 sudo mv krakend-mcp-server /usr/local/bin/
 
 # macOS Intel
-curl -L -o krakend-mcp-server https://github.com/krakend/mcp-server/releases/download/v0.6.1/krakend-mcp-darwin-amd64
+curl -L -o krakend-mcp-server https://github.com/krakend/mcp-server/releases/download/v0.6.3/krakend-mcp-darwin-amd64
 chmod +x krakend-mcp-server
 sudo mv krakend-mcp-server /usr/local/bin/
 
 # Linux x64
-curl -L -o krakend-mcp-server https://github.com/krakend/mcp-server/releases/download/v0.6.1/krakend-mcp-linux-amd64
+curl -L -o krakend-mcp-server https://github.com/krakend/mcp-server/releases/download/v0.6.3/krakend-mcp-linux-amd64
 chmod +x krakend-mcp-server
 sudo mv krakend-mcp-server /usr/local/bin/
 
@@ -445,7 +445,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
 
 | KrakenD Version | MCP Server Version | Status |
 |----------------|-------------------|--------|
-| 2.0 - 2.7      | 0.6.1+            | ✅ Full support |
+| 2.x            | 0.6.3+            | ✅ Full support |
 | 1.x            | -                 | ⚠️ Limited support |
 
 ## Related Projects
@@ -505,7 +505,7 @@ This project is in active development. Current status:
 - ✅ All 10 tools functional and tested
 - ✅ Cross-platform builds (macOS, Linux, Windows)
 - ✅ Embedded documentation with offline search
-- ✅ **Automated testing suite** with CI/CD (22% coverage, threshold: 20%)
+- ✅ **Automated testing suite** with CI/CD (28% coverage, threshold: 20%)
 
 ### Testing
 
@@ -525,7 +525,7 @@ go test ./... -cover -coverprofile=coverage.out
 go tool cover -html=coverage.out
 ```
 
-Current test coverage: **22%** (minimum threshold: 20%)
+Current test coverage: **28%** (minimum threshold: 20%)
 
 **What's tested:**
 - Configuration validation logic

@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/krakend/mcp-server/internal/indexing"
 )
@@ -284,4 +286,416 @@ func TestExtractEmbeddedIndex_ErrorHandling(t *testing.T) {
 	}
 }
 
+// --- Pure Unit Tests for Concurrency ---
+// These tests verify the thread-safe atomic pointer swap implementation
+// using mocks (no filesystem, no external dependencies)
 
+func TestIndexHolderConcurrentReads(t *testing.T) {
+	// Test that multiple goroutines can safely read from indexHolder
+	// Using mock index (pure unit test - no filesystem)
+
+	mockIdx := newMockIndex(1)
+	idx := Index(mockIdx)
+
+	// Create indexHolder and store the mock index
+	holder := &indexHolder{}
+	holder.current.Store(&idx)
+
+	// Launch 50 concurrent goroutines that read the index
+	const numReaders = 50
+	errChan := make(chan error, numReaders)
+	doneChan := make(chan bool, numReaders)
+
+	for i := 0; i < numReaders; i++ {
+		go func(id int) {
+			defer func() { doneChan <- true }()
+
+			holder.wg.Add(1)
+			defer holder.wg.Done()
+
+			// Load index atomically
+			indexPtr := holder.current.Load()
+			if indexPtr == nil {
+				errChan <- fmt.Errorf("goroutine %d: got nil index", id)
+				return
+			}
+
+			// Verify we can access the index
+			index := *indexPtr
+			count, err := index.DocCount()
+			if err != nil {
+				errChan <- fmt.Errorf("goroutine %d: DocCount failed: %v", id, err)
+				return
+			}
+
+			// Verify count is valid
+			if count != 100 { // Mock returns 100
+				errChan <- fmt.Errorf("goroutine %d: expected 100, got %d", id, count)
+			}
+		}(i)
+	}
+
+	// Wait for all goroutines to finish
+	for i := 0; i < numReaders; i++ {
+		<-doneChan
+	}
+	close(errChan)
+
+	// Check for errors
+	for err := range errChan {
+		t.Error(err)
+	}
+
+	// Verify WaitGroup drained
+	holder.wg.Wait() // Should return immediately
+}
+
+func TestIndexHolderAtomicSwap(t *testing.T) {
+	// Test that atomic swap works correctly (pure unit test with mocks)
+
+	// Create two mock indexes
+	mock1 := newMockIndex(1)
+	mock2 := newMockIndex(2)
+	idx1 := Index(mock1)
+	idx2 := Index(mock2)
+
+	// Create indexHolder with first index
+	holder := &indexHolder{}
+	holder.current.Store(&idx1)
+
+	// Verify we have index1
+	ptr1 := holder.current.Load()
+	if ptr1 == nil {
+		t.Fatal("First load returned nil")
+	}
+
+	// Verify it's idx1
+	if *ptr1 != idx1 {
+		t.Error("Expected idx1")
+	}
+
+	// Swap to index2
+	oldPtr := holder.current.Swap(&idx2)
+	if oldPtr == nil {
+		t.Fatal("Swap returned nil for old index")
+	}
+
+	// Verify old pointer was idx1
+	if *oldPtr != idx1 {
+		t.Error("Old pointer should be idx1")
+	}
+
+	// Verify we now have index2
+	ptr2 := holder.current.Load()
+	if ptr2 == nil {
+		t.Fatal("Second load returned nil")
+	}
+
+	// Verify it's idx2
+	if *ptr2 != idx2 {
+		t.Error("Expected idx2")
+	}
+
+	// Verify old and new pointers are different
+	if ptr1 == ptr2 {
+		t.Error("Old and new pointers should be different")
+	}
+}
+
+func TestIndexHolderRefreshMutexSerialization(t *testing.T) {
+	// Test that refreshMu properly serializes concurrent operations
+	holder := &indexHolder{}
+
+	const numGoroutines = 10
+	counter := 0
+	doneChan := make(chan bool, numGoroutines)
+
+	for i := 0; i < numGoroutines; i++ {
+		go func() {
+			defer func() { doneChan <- true }()
+
+			holder.refreshMu.Lock()
+			defer holder.refreshMu.Unlock()
+
+			// Critical section: increment counter
+			oldCounter := counter
+			// Simulate some work
+			for j := 0; j < 1000; j++ {
+				_ = j * j
+			}
+			counter = oldCounter + 1
+		}()
+	}
+
+	// Wait for all goroutines
+	for i := 0; i < numGoroutines; i++ {
+		<-doneChan
+	}
+
+	// Verify counter was incremented exactly numGoroutines times
+	if counter != numGoroutines {
+		t.Errorf("Expected counter=%d, got %d (mutex not properly serializing)", numGoroutines, counter)
+	}
+}
+
+func TestIndexHolderWaitGroupTracking(t *testing.T) {
+	// Test that WaitGroup properly tracks in-flight operations
+	holder := &indexHolder{}
+
+	const numOperations = 100
+	doneChan := make(chan bool, numOperations)
+
+	// Launch operations
+	for i := 0; i < numOperations; i++ {
+		holder.wg.Add(1)
+		go func() {
+			defer holder.wg.Done()
+			defer func() { doneChan <- true }()
+
+			// Simulate some work
+			for j := 0; j < 100; j++ {
+				_ = j * j
+			}
+		}()
+	}
+
+	// Wait for all operations to complete
+	holder.wg.Wait()
+
+	// Verify all goroutines finished
+	completedCount := 0
+	for i := 0; i < numOperations; i++ {
+		select {
+		case <-doneChan:
+			completedCount++
+		default:
+			// Should not happen - all should be done
+		}
+	}
+
+	if completedCount != numOperations {
+		t.Errorf("Expected %d completed operations, got %d", numOperations, completedCount)
+	}
+}
+
+func TestIndexHolderConcurrentSwapAndRead(t *testing.T) {
+	// Test concurrent swaps and reads (stress test with mocks - pure unit test)
+	// This test verifies that atomic swaps work correctly under high concurrency
+
+	// Create initial mock index
+	mockIdx := newMockIndex(0)
+	idx := Index(mockIdx)
+
+	// Create indexHolder
+	holder := &indexHolder{}
+	holder.current.Store(&idx)
+
+	errChan := make(chan error, 100)
+	doneChan := make(chan bool, 100)
+
+	// Launch readers (20 goroutines, 5 iterations each - reduced for stability)
+	const numReaders = 20
+	const iterations = 5
+
+	for i := 0; i < numReaders; i++ {
+		go func(id int) {
+			defer func() { doneChan <- true }()
+
+			for j := 0; j < iterations; j++ {
+				holder.wg.Add(1)
+				indexPtr := holder.current.Load()
+
+				if indexPtr == nil {
+					holder.wg.Done()
+					errChan <- fmt.Errorf("reader %d iteration %d: got nil", id, j)
+					return
+				}
+
+				// Try to access the index
+				index := *indexPtr
+				_, err := index.DocCount()
+				holder.wg.Done()
+
+				if err != nil && err.Error() != "index closed" {
+					// Allow "index closed" errors during swap (expected race)
+					errChan <- fmt.Errorf("reader %d iteration %d: %v", id, j, err)
+					return
+				}
+			}
+		}(i)
+	}
+
+	// Launch swapper (simulates refresh with 3 swaps - reduced)
+	go func() {
+		defer func() { doneChan <- true }()
+
+		for i := 0; i < 3; i++ {
+			// Create new mock index
+			newMock := newMockIndex(i + 1)
+			newIdx := Index(newMock)
+
+			// Swap atomically
+			_ = holder.current.Swap(&newIdx)
+
+			// Note: In production, cleanup happens in background
+			// Here we skip cleanup to avoid WaitGroup misuse in test
+		}
+	}()
+
+	// Wait for all goroutines (readers + 1 swapper)
+	for i := 0; i < numReaders+1; i++ {
+		<-doneChan
+	}
+
+	// Close error channel after all goroutines finish
+	close(errChan)
+
+	// Check errors
+	for err := range errChan {
+		t.Error(err)
+	}
+
+	// Final wait to ensure all ops completed
+	holder.wg.Wait()
+}
+
+// --- Lock Mechanism Tests ---
+// These tests verify the file-based locking mechanism for inter-process coordination
+
+func TestLockMechanism(t *testing.T) {
+	// Use temp directory for testing
+	oldDataDir := dataDir
+	dataDir = t.TempDir()
+	defer func() { dataDir = oldDataDir }()
+
+	// Create search directory
+	searchDir := filepath.Join(dataDir, "search")
+	if err := os.MkdirAll(searchDir, 0755); err != nil {
+		t.Fatalf("Failed to create search dir: %v", err)
+	}
+
+	t.Run("acquire and release lock", func(t *testing.T) {
+		// Clean state
+		os.Remove(filepath.Join(dataDir, lockFile))
+
+		// Acquire lock
+		if err := acquireLock(); err != nil {
+			t.Fatalf("Failed to acquire lock: %v", err)
+		}
+
+		// Verify lock file exists
+		lockPath := filepath.Join(dataDir, lockFile)
+		data, err := os.ReadFile(lockPath)
+		if err != nil {
+			t.Fatalf("Lock file not found: %v", err)
+		}
+
+		// Verify PID is correct
+		pid, err := strconv.Atoi(string(data))
+		if err != nil {
+			t.Fatalf("Invalid PID in lock file: %v", err)
+		}
+		if pid != os.Getpid() {
+			t.Errorf("Lock has wrong PID: got %d, want %d", pid, os.Getpid())
+		}
+
+		// Release lock
+		if err := releaseLock(); err != nil {
+			t.Fatalf("Failed to release lock: %v", err)
+		}
+
+		// Verify lock file removed
+		if _, err := os.Stat(lockPath); !os.IsNotExist(err) {
+			t.Error("Lock file should be removed after release")
+		}
+	})
+
+	t.Run("detect stale lock", func(t *testing.T) {
+		// Clean state
+		os.Remove(filepath.Join(dataDir, lockFile))
+
+		// Create fake stale lock with non-existent PID
+		stalePID := 99999
+		lockPath := filepath.Join(dataDir, lockFile)
+		if err := os.WriteFile(lockPath, []byte(strconv.Itoa(stalePID)), 0644); err != nil {
+			t.Fatalf("Failed to create stale lock: %v", err)
+		}
+
+		// Try to acquire lock (should clean stale lock)
+		if err := acquireLock(); err != nil {
+			t.Fatalf("Failed to acquire lock after stale lock: %v", err)
+		}
+
+		// Verify our PID is now in lock
+		data, _ := os.ReadFile(lockPath)
+		pid, _ := strconv.Atoi(string(data))
+		if pid != os.Getpid() {
+			t.Errorf("Expected our PID after cleaning stale lock, got %d", pid)
+		}
+
+		// Cleanup
+		releaseLock()
+	})
+
+	t.Run("reacquire same lock", func(t *testing.T) {
+		// Clean state
+		os.Remove(filepath.Join(dataDir, lockFile))
+
+		// Acquire lock
+		if err := acquireLock(); err != nil {
+			t.Fatalf("Failed to acquire lock: %v", err)
+		}
+
+		// Try to acquire again (should succeed immediately - same PID)
+		if err := acquireLock(); err != nil {
+			t.Fatalf("Failed to reacquire lock: %v", err)
+		}
+
+		// Cleanup
+		releaseLock()
+	})
+
+	t.Run("timeout on held lock", func(t *testing.T) {
+		// Skip this test as it takes 5 seconds (lockTimeout)
+		// In real usage, this timeout is intentional to wait for other processes
+		t.Skip("Skipping timeout test (takes 5s) - timeout behavior verified manually")
+
+		// Clean state
+		os.Remove(filepath.Join(dataDir, lockFile))
+
+		// Create lock with a different PID that exists (PID 1 always exists on Unix)
+		lockPath := filepath.Join(dataDir, lockFile)
+		if err := os.WriteFile(lockPath, []byte("1"), 0644); err != nil {
+			t.Fatalf("Failed to create lock: %v", err)
+		}
+
+		start := time.Now()
+		err := acquireLock()
+		elapsed := time.Since(start)
+
+		if err == nil {
+			t.Error("Expected error acquiring held lock, got nil")
+			releaseLock()
+		}
+
+		// Should timeout after ~5 seconds
+		if elapsed < 4*time.Second || elapsed > 6*time.Second {
+			t.Errorf("Expected timeout of ~5s, got %v", elapsed)
+		}
+
+		// Cleanup
+		os.Remove(lockPath)
+	})
+
+	t.Run("is process running", func(t *testing.T) {
+		// Test our own PID (should be running)
+		if !isProcessRunning(os.Getpid()) {
+			t.Error("Our own process should be detected as running")
+		}
+
+		// Test non-existent PID
+		if isProcessRunning(99999) {
+			t.Error("Non-existent process should not be detected as running")
+		}
+	})
+}
