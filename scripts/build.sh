@@ -129,6 +129,11 @@ fi
 # Run indexer
 "$PROJECT_ROOT/cmd/indexer/indexer" "$DOCS_DIR/llms-full.txt" "$SEARCH_DIR/index"
 
+# Restore .gitkeep file (indexer removes it with os.RemoveAll)
+cat > "$SEARCH_DIR/index/.gitkeep" <<EOF
+# Placeholder to satisfy go:embed directive
+EOF
+
 # Give Bleve time to finish async writes
 sleep 2
 
