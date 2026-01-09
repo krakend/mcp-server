@@ -155,7 +155,7 @@ func TestDetectEnterpriseFeatures_NoEEFeatures(t *testing.T) {
 		"endpoints": []
 	}`
 
-	result := detectEnterpriseFeatures(config)
+	result := DetectEnterpriseFeatures(config)
 
 	if result {
 		t.Error("Expected false for config without EE features")
@@ -172,7 +172,7 @@ func TestDetectEnterpriseFeatures_WithEENamespace(t *testing.T) {
 		}
 	}`
 
-	result := detectEnterpriseFeatures(config)
+	result := DetectEnterpriseFeatures(config)
 
 	if !result {
 		t.Error("Expected true for config with EE namespace (auth/api-keys)")

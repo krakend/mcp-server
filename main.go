@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	version     = "0.6.2"
+	version     = "0.6.3"
 	serverName  = "krakend-mcp-server"
 	description = "MCP server for KrakenD API Gateway configuration assistance"
 )

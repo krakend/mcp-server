@@ -23,6 +23,20 @@ var (
 	editionMatrix  *features.EditionMatrix
 )
 
+// DetectEnterpriseFeatures checks if config uses EE-only features
+// This wrapper ensures feature data is loaded before detection
+func DetectEnterpriseFeatures(configJSON string) bool {
+	// Ensure feature data is loaded
+	if editionMatrix == nil || featureCatalog == nil {
+		if err := LoadFeatureData(); err != nil {
+			return false
+		}
+	}
+
+	// Use centralized detection from internal/features
+	return features.DetectEnterpriseFeatures(configJSON, editionMatrix.EEOnlyFeatures)
+}
+
 // LoadFeatureData loads feature catalog and edition matrix
 func LoadFeatureData() error {
 	// Load feature catalog

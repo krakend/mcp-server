@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/blevesearch/bleve/v2"
@@ -231,8 +233,21 @@ type RefreshDocumentationIndexOutput struct {
 	Message       string    `json:"message"`
 }
 
+// indexHolder manages concurrent access to the Bleve documentation index
+type indexHolder struct {
+	// current holds the active index pointer (atomic access for lock-free reads)
+	current atomic.Pointer[Index]
+
+	// refreshMu prevents concurrent refresh operations
+	// NOT used for searches - they are lock-free via atomic pointer
+	refreshMu sync.Mutex
+
+	// wg tracks in-flight search operations for graceful cleanup of old indexes
+	wg sync.WaitGroup
+}
+
 var (
-	docIndex bleve.Index
+	indexMgr *indexHolder
 )
 
 // InitializeDocSearch initializes the documentation search system
@@ -240,6 +255,11 @@ var (
 func InitializeDocSearch() error {
 	startTime := time.Now()
 	log.Printf("Initializing documentation search...")
+
+	// Initialize indexHolder if needed
+	if indexMgr == nil {
+		indexMgr = &indexHolder{}
+	}
 
 	indexPath := filepath.Join(dataDir, indexDir)
 
@@ -264,8 +284,9 @@ func InitializeDocSearch() error {
 			openStart := time.Now()
 			index, err := bleve.Open(indexPath)
 			if err == nil {
-				docIndex = index
-				count, _ := docIndex.DocCount()
+				wrapped := NewBleveIndexWrapper(index)
+				indexMgr.current.Store(&wrapped)
+				count, _ := wrapped.DocCount()
 				elapsed := time.Since(startTime).Round(time.Millisecond)
 				log.Printf("✓ Documentation search initialized (%d docs, local index v%d) in %v",
 					count, indexing.IndexSchemaVersion, elapsed)
@@ -302,8 +323,9 @@ func InitializeDocSearch() error {
 	}
 	log.Printf("Index opened in %v", time.Since(openStart).Round(time.Millisecond))
 
-	docIndex = index
-	count, _ := docIndex.DocCount()
+	wrapped := NewBleveIndexWrapper(index)
+	indexMgr.current.Store(&wrapped)
+	count, _ := wrapped.DocCount()
 	elapsed := time.Since(startTime).Round(time.Millisecond)
 	log.Printf("✓ Documentation search initialized (%d docs, embedded index) in %v", count, elapsed)
 	log.Printf("ℹ️  Using embedded documentation (build-time). Use refresh_documentation_index to get latest docs.")
@@ -495,83 +517,126 @@ func countOversized(chunks []indexing.DocChunk) int {
 func indexChunks(chunks []indexing.DocChunk) error {
 	startTime := time.Now()
 	indexPath := filepath.Join(dataDir, indexDir)
+	tempIndexPath := filepath.Join(dataDir, indexDir+".tmp")
 
-	// Close existing index if open
-	if docIndex != nil {
-		log.Printf("Closing existing index before recreating...")
-		if err := docIndex.Close(); err != nil {
-			log.Printf("Warning: Error closing existing index: %v", err)
-		}
-		docIndex = nil
+	// Clean up any leftover temp index from previous crash
+	os.RemoveAll(tempIndexPath)
+
+	// Create directory for temp index
+	if err := os.MkdirAll(filepath.Dir(tempIndexPath), 0755); err != nil {
+		return fmt.Errorf("failed to create temp index directory: %w", err)
 	}
 
-	// Delete old index if exists
-	log.Printf("Removing old index...")
-	os.RemoveAll(indexPath)
-
-	// Create directory
-	if err := os.MkdirAll(filepath.Dir(indexPath), 0755); err != nil {
-		return fmt.Errorf("failed to create index directory: %w", err)
-	}
-
-	// Create new index
-	log.Printf("Creating new index with %d chunks...", len(chunks))
+	// Create new index in temp location
+	log.Printf("Creating new index with %d chunks in temp location...", len(chunks))
 	createStart := time.Now()
 	mapping := bleve.NewIndexMapping()
-	index, err := bleve.New(indexPath, mapping)
+	newIndex, err := bleve.New(tempIndexPath, mapping)
 	if err != nil {
-		return fmt.Errorf("failed to create index: %w", err)
+		return fmt.Errorf("failed to create temp index: %w", err)
 	}
-	log.Printf("Index created in %v", time.Since(createStart).Round(time.Millisecond))
+	log.Printf("Temp index created in %v", time.Since(createStart).Round(time.Millisecond))
 
 	// Index all chunks
 	indexStart := time.Now()
-	batch := index.NewBatch()
+	batch := newIndex.NewBatch()
 	for i, chunk := range chunks {
 		if err := batch.Index(chunk.ID, chunk); err != nil {
-			index.Close()
+			newIndex.Close()
+			os.RemoveAll(tempIndexPath)
 			return fmt.Errorf("failed to add chunk %s to batch: %w", chunk.ID, err)
 		}
 
 		// Submit batch every 100 documents
 		if i%100 == 0 && i > 0 {
-			if err := index.Batch(batch); err != nil {
-				index.Close()
+			if err := newIndex.Batch(batch); err != nil {
+				newIndex.Close()
+				os.RemoveAll(tempIndexPath)
 				return fmt.Errorf("failed to index batch: %w", err)
 			}
-			batch = index.NewBatch()
+			batch = newIndex.NewBatch()
 			log.Printf("Indexed %d/%d chunks...", i, len(chunks))
 		}
 	}
 
 	// Submit remaining
 	if batch.Size() > 0 {
-		if err := index.Batch(batch); err != nil {
-			index.Close()
+		if err := newIndex.Batch(batch); err != nil {
+			newIndex.Close()
+			os.RemoveAll(tempIndexPath)
 			return fmt.Errorf("failed to index final batch: %w", err)
 		}
 	}
 
 	log.Printf("Indexed %d chunks in %v", len(chunks), time.Since(indexStart).Round(time.Millisecond))
 
-	// Close the index explicitly before reopening
-	if err := index.Close(); err != nil {
-		log.Printf("Warning: Error closing index during creation: %v", err)
+	// Close temp index before moving
+	if err := newIndex.Close(); err != nil {
+		log.Printf("Warning: Error closing temp index: %v", err)
+		os.RemoveAll(tempIndexPath)
+		return fmt.Errorf("failed to close temp index: %w", err)
 	}
 
-	// Reopen global index
-	log.Printf("Reopening index for use...")
-	reopenStart := time.Now()
-	docIndex, err = bleve.Open(indexPath)
-	if err != nil {
-		return fmt.Errorf("failed to reopen index: %w", err)
+	// Atomic filesystem swap: rename temp to final location
+	log.Printf("Swapping temp index into place...")
+	swapStart := time.Now()
+
+	// Remove old index directory (atomic operation will replace it)
+	if err := os.RemoveAll(indexPath); err != nil && !os.IsNotExist(err) {
+		os.RemoveAll(tempIndexPath)
+		return fmt.Errorf("failed to remove old index: %w", err)
 	}
-	log.Printf("Index reopened in %v", time.Since(reopenStart).Round(time.Millisecond))
+
+	// Rename temp to final location (atomic operation on POSIX)
+	if err := os.Rename(tempIndexPath, indexPath); err != nil {
+		os.RemoveAll(tempIndexPath)
+		return fmt.Errorf("failed to rename temp index: %w", err)
+	}
+	log.Printf("Index swapped in %v", time.Since(swapStart).Round(time.Millisecond))
+
+	// Open the index from final location
+	log.Printf("Opening new index for use...")
+	reopenStart := time.Now()
+	finalIndex, err := bleve.Open(indexPath)
+	if err != nil {
+		return fmt.Errorf("failed to open new index: %w", err)
+	}
+	log.Printf("New index opened in %v", time.Since(reopenStart).Round(time.Millisecond))
+
+	// Wrap the index with our interface
+	wrapped := NewBleveIndexWrapper(finalIndex)
+
+	// ATOMIC SWAP: Replace the global index pointer
+	log.Printf("Swapping index pointer atomically...")
+	oldIndexPtr := indexMgr.current.Swap(&wrapped)
+
+	// Graceful cleanup of old index in background
+	go func(oldPtr *Index) {
+		if oldPtr == nil {
+			return
+		}
+
+		log.Printf("Waiting for in-flight searches to complete before closing old index...")
+		waitStart := time.Now()
+
+		// Wait for all in-flight searches on old index to complete
+		indexMgr.wg.Wait()
+
+		log.Printf("All searches completed, closing old index (waited %v)...",
+			time.Since(waitStart).Round(time.Millisecond))
+
+		old := *oldPtr
+		if err := old.Close(); err != nil {
+			log.Printf("Warning: Error closing old index: %v", err)
+		} else {
+			log.Printf("✓ Old index closed successfully")
+		}
+	}(oldIndexPtr)
 
 	elapsed := time.Since(startTime).Round(time.Millisecond)
-	log.Printf("✓ Index created successfully in %v and ready for searches", elapsed)
+	log.Printf("✓ Index swap completed in %v, searches now using new index", elapsed)
 
-	// Write version file to mark this as v2 index
+	// Write version file to mark this as current index version
 	if err := writeIndexVersion(); err != nil {
 		log.Printf("Warning: Failed to write index version: %v", err)
 	}
@@ -588,9 +653,20 @@ func refreshDocumentationIndex(force bool) error {
 		return nil // Cache is fresh
 	}
 
+	// Serialize refresh operations (prevent concurrent refreshes)
+	indexMgr.refreshMu.Lock()
+	defer indexMgr.refreshMu.Unlock()
+
+	// Re-check after acquiring lock (double-checked locking pattern)
+	// Another goroutine may have already refreshed while we were waiting
+	if !force && !needsRefresh() {
+		log.Printf("Documentation was refreshed by another goroutine, skipping")
+		return nil
+	}
+
 	log.Printf("Starting documentation refresh (force=%v)...", force)
 
-	// Acquire lock for re-indexing (will wait if another process has it)
+	// Acquire inter-process lock for re-indexing (will wait if another process has it)
 	if err := acquireLock(); err != nil {
 		return fmt.Errorf("failed to acquire lock for refresh: %w", err)
 	}
@@ -627,13 +703,28 @@ func refreshDocumentationIndex(force bool) error {
 
 // SearchDocumentation searches through KrakenD documentation
 func SearchDocumentation(ctx context.Context, req *mcp.CallToolRequest, input SearchDocumentationInput) (*mcp.CallToolResult, SearchDocumentationOutput, error) {
+	// Track in-flight searches for graceful cleanup (MUST be before Load)
+	indexMgr.wg.Add(1)
+	defer indexMgr.wg.Done()
+
+	// Get current index atomically (lock-free read)
+	indexPtr := indexMgr.current.Load()
+
 	// If index not initialized, try to initialize it now
-	if docIndex == nil {
+	if indexPtr == nil {
 		log.Printf("Doc index not initialized, initializing now...")
 		if err := InitializeDocSearch(); err != nil {
 			return nil, SearchDocumentationOutput{}, fmt.Errorf("failed to initialize documentation index: %w", err)
 		}
+		// Reload after initialization
+		indexPtr = indexMgr.current.Load()
+		if indexPtr == nil {
+			return nil, SearchDocumentationOutput{}, fmt.Errorf("index still nil after initialization")
+		}
 	}
+
+	// Dereference pointer to get actual index
+	index := *indexPtr
 
 	maxResults := input.MaxResults
 	if maxResults == 0 || maxResults > 20 {
@@ -646,8 +737,8 @@ func SearchDocumentation(ctx context.Context, req *mcp.CallToolRequest, input Se
 	search.Size = maxResults
 	search.Fields = []string{"*"}
 
-	// Execute search
-	searchResults, err := docIndex.Search(search)
+	// Execute search on current index
+	searchResults, err := index.Search(search)
 	if err != nil {
 		return nil, SearchDocumentationOutput{}, fmt.Errorf("search failed: %w", err)
 	}
@@ -726,9 +817,11 @@ func RefreshDocumentationIndex(ctx context.Context, req *mcp.CallToolRequest, in
 		return nil, output, fmt.Errorf("refresh failed: %w", err)
 	}
 
-	// Count chunks
-	if docIndex != nil {
-		count, _ := docIndex.DocCount()
+	// Count chunks from current index
+	indexPtr := indexMgr.current.Load()
+	if indexPtr != nil {
+		index := *indexPtr
+		count, _ := index.DocCount()
 		output.ChunksIndexed = int(count)
 	}
 
@@ -772,15 +865,29 @@ func RegisterDocSearchTools(server *mcp.Server) error {
 func CloseDocSearch() error {
 	var closeErr error
 
-	// Close index first
-	if docIndex != nil {
-		closeErr = docIndex.Close()
-		if closeErr != nil {
-			log.Printf("Error closing doc index: %v", closeErr)
+	// Close index gracefully
+	if indexMgr != nil {
+		// Atomically swap index to nil (prevents new searches)
+		indexPtr := indexMgr.current.Swap(nil)
+
+		if indexPtr != nil {
+			log.Printf("Waiting for in-flight searches to complete before closing...")
+
+			// Wait for all in-flight searches to complete
+			indexMgr.wg.Wait()
+
+			// Now safe to close index
+			index := *indexPtr
+			closeErr = index.Close()
+			if closeErr != nil {
+				log.Printf("Error closing doc index: %v", closeErr)
+			} else {
+				log.Printf("✓ Doc index closed successfully")
+			}
 		}
 	}
 
-	// Always attempt to release lock, even if close failed
+	// Always attempt to release inter-process lock, even if close failed
 	if err := releaseLock(); err != nil {
 		log.Printf("Error releasing lock: %v", err)
 		if closeErr == nil {
