@@ -15,9 +15,12 @@ set -e
 # Latest version (update on each release)
 VERSION="0.6.2"
 
-# Installation directory
-INSTALL_DIR="/usr/local/bin"
+# Installation directory (to be determined by determine_install_dir)
+INSTALL_DIR=""
 DATA_DIR="${HOME}/.krakend-mcp"
+
+# Flag to show PATH instructions if needed
+NEEDS_PATH_REMINDER=0
 
 # Colors
 RED='\033[0;31m'
@@ -107,6 +110,34 @@ detect_platform() {
     log_verbose "Binary name: $BINARY_NAME"
 }
 
+# Determine installation directory
+determine_install_dir() {
+    # Preferred: /usr/local/bin (system-wide, traditional location)
+    # Works on: macOS, Linux, WSL
+    if [ -d "/usr/local/bin" ] && [ -w "/usr/local/bin" ]; then
+        INSTALL_DIR="/usr/local/bin"
+        log "Using system installation directory: $INSTALL_DIR"
+        return
+    fi
+
+    # Fallback: ~/.local/bin (XDG standard, user-local)
+    # Works on: macOS, Linux, WSL, Git Bash, MSYS2, Cygwin
+    INSTALL_DIR="$HOME/.local/bin"
+    log "Using user installation directory: $INSTALL_DIR"
+
+    # Create directory if it doesn't exist
+    if [ ! -d "$INSTALL_DIR" ]; then
+        log "Creating directory $INSTALL_DIR..."
+        mkdir -p "$INSTALL_DIR"
+        NEEDS_PATH_REMINDER=1
+    fi
+
+    # Check if directory is in PATH
+    if ! echo "$PATH" | grep -q "$INSTALL_DIR"; then
+        NEEDS_PATH_REMINDER=1
+    fi
+}
+
 # Download binary
 download_binary() {
     local url="https://github.com/krakend/mcp-server/releases/download/v${VERSION}/${BINARY_NAME}"
@@ -172,15 +203,8 @@ install_binary() {
 
     log "Installing to $target..."
 
-    # Check if we need sudo
-    if [ -w "$INSTALL_DIR" ]; then
-        mv "$tmp_binary" "$target"
-        chmod +x "$target"
-    else
-        log "Need sudo to install to $INSTALL_DIR"
-        sudo mv "$tmp_binary" "$target"
-        sudo chmod +x "$target"
-    fi
+    mv "$tmp_binary" "$target"
+    chmod +x "$target"
 
     log_success "Binary installed"
 }
@@ -225,6 +249,7 @@ main() {
     echo ""
 
     detect_platform
+    determine_install_dir
     download_binary
     install_binary
     setup_data_dir
@@ -238,9 +263,32 @@ main() {
     log "Installed: ${INSTALL_DIR}/krakend-mcp-server"
     log "Data directory: ${DATA_DIR}"
     echo ""
+
+    # Show PATH instructions if needed
+    if [ $NEEDS_PATH_REMINDER -eq 1 ]; then
+        log_warning "⚠️  Add $INSTALL_DIR to your PATH:"
+        echo ""
+        log "  For bash:"
+        echo "    echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> ~/.bash_profile"
+        echo ""
+        log "  For zsh:"
+        echo "    echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> ~/.zshrc"
+        echo ""
+        log "  Then restart your shell or run:"
+        echo "    source ~/.bash_profile  (for bash)"
+        echo "    source ~/.zshrc         (for zsh)"
+        echo ""
+    fi
+
     log "Next steps:"
-    echo "  1. Configure your MCP client (see README)"
-    echo "  2. Run: krakend-mcp-server --version"
+    if [ $NEEDS_PATH_REMINDER -eq 1 ]; then
+        echo "  1. Add $INSTALL_DIR to your PATH (see instructions above)"
+        echo "  2. Configure your MCP client (see README)"
+        echo "  3. Run: krakend-mcp-server --version"
+    else
+        echo "  1. Configure your MCP client (see README)"
+        echo "  2. Run: krakend-mcp-server --version"
+    fi
     echo ""
     log "Documentation: https://github.com/krakend/mcp-server"
     echo ""
