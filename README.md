@@ -34,7 +34,7 @@ This script will:
 - ✅ Auto-detect your platform (macOS, Linux, Windows)
 - ✅ Download the correct binary
 - ✅ Verify checksums for security
-- ✅ Install to `/usr/local/bin/`
+- ✅ Install to `/usr/local/bin/` (or `~/.local/bin/` if no write permissions)
 - ✅ Create data directory at `~/.krakend-mcp/`
 
 **Manual installation** - Download pre-compiled binaries from [GitHub Releases](https://github.com/krakend/mcp-server/releases):
