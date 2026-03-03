@@ -82,7 +82,7 @@ func LoadFeatureData() error {
 type FeatureSummary struct {
 	Name        string `json:"name"`
 	Namespace   string `json:"namespace"`
-	Edition     string `json:"edition"`     // "ce", "ee", or "both"
+	Edition     string `json:"edition"` // "ce", "ee", or "both"
 	Category    string `json:"category"`
 	Description string `json:"description"`
 	DocsURL     string `json:"docs_url,omitempty"`
@@ -119,10 +119,11 @@ func ListFeatures(ctx context.Context, req *mcp.CallToolRequest, input ListFeatu
 		})
 	}
 
-	return nil, ListFeaturesOutput{
+	output := ListFeaturesOutput{
 		Features: summaries,
 		Count:    len(summaries),
-	}, nil
+	}
+	return &mcp.CallToolResult{Meta: map[string]interface{}{"count": output.Count}}, output, nil
 }
 
 // CheckEditionCompatibilityInput defines input for check_edition_compatibility tool
@@ -132,12 +133,12 @@ type CheckEditionCompatibilityInput struct {
 
 // CheckEditionCompatibilityOutput defines output for check_edition_compatibility tool
 type CheckEditionCompatibilityOutput struct {
-	Edition        string   `json:"edition"`         // "ce", "ee", or "mixed"
-	EEFeatures     []string `json:"ee_features"`     // List of EE-only features found
-	CECompatible   bool     `json:"ce_compatible"`   // True if config works with CE
-	RequiresEE     bool     `json:"requires_ee"`     // True if config requires EE
+	Edition        string                 `json:"edition"`       // "ce", "ee", or "mixed"
+	EEFeatures     []string               `json:"ee_features"`   // List of EE-only features found
+	CECompatible   bool                   `json:"ce_compatible"` // True if config works with CE
+	RequiresEE     bool                   `json:"requires_ee"`   // True if config requires EE
 	FeatureDetails []FeatureCompatibility `json:"feature_details"`
-	Message        string   `json:"message"`
+	Message        string                 `json:"message"`
 }
 
 // FeatureCompatibility represents compatibility info for a feature
