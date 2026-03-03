@@ -14,17 +14,17 @@ import (
 
 // ValidationEnvironment represents the available validation methods
 type ValidationEnvironment struct {
-	HasNativeKrakenD   bool
-	HasDocker          bool
-	DockerVersion      string
-	FlexibleConfig     *FlexibleConfigInfo
+	HasNativeKrakenD bool
+	HasDocker        bool
+	DockerVersion    string
+	FlexibleConfig   *FlexibleConfigInfo
 }
 
 // FlexibleConfigInfo represents Flexible Configuration detection results
 type FlexibleConfigInfo struct {
 	Detected       bool     `json:"detected"`
-	Type           string   `json:"type"`           // "ce" or "ee"
-	BaseTemplate   string   `json:"base_template"`  // e.g., "krakend.tmpl" or "krakend.json"
+	Type           string   `json:"type"`          // "ce" or "ee"
+	BaseTemplate   string   `json:"base_template"` // e.g., "krakend.tmpl" or "krakend.json"
 	BehavioralFile string   `json:"behavioral_file,omitempty"`
 	SettingsDir    string   `json:"settings_dir,omitempty"`
 	TemplatesDir   string   `json:"templates_dir,omitempty"`
@@ -35,21 +35,21 @@ type FlexibleConfigInfo struct {
 
 // RuntimeInfo contains complete runtime detection information
 type RuntimeInfo struct {
-	Environment       *ValidationEnvironment `json:"environment"`
-	TargetVersion     string                 `json:"target_version"`      // From $schema or "latest"
-	ResolvedFrom      string                 `json:"resolved_from,omitempty"` // URL if resolved from schema
-	NativeVersion     string                 `json:"native_version,omitempty"`
-	IsEnterprise      bool                   `json:"is_enterprise"`
-	VersionMatch      bool                   `json:"version_match"`
-	RecommendedImage  string                 `json:"recommended_image,omitempty"`
-	ExecutionMode     string                 `json:"execution_mode"` // "native", "docker", "docker_recommended", "unavailable"
-	Recommendations   []Recommendation       `json:"recommendations"`
+	Environment      *ValidationEnvironment `json:"environment"`
+	TargetVersion    string                 `json:"target_version"`          // From $schema or "latest"
+	ResolvedFrom     string                 `json:"resolved_from,omitempty"` // URL if resolved from schema
+	NativeVersion    string                 `json:"native_version,omitempty"`
+	IsEnterprise     bool                   `json:"is_enterprise"`
+	VersionMatch     bool                   `json:"version_match"`
+	RecommendedImage string                 `json:"recommended_image,omitempty"`
+	ExecutionMode    string                 `json:"execution_mode"` // "native", "docker", "docker_recommended", "unavailable"
+	Recommendations  []Recommendation       `json:"recommendations"`
 }
 
 // Recommendation represents an execution method recommendation
 type Recommendation struct {
-	Method          string `json:"method"`           // "native" or "docker"
-	Priority        int    `json:"priority"`         // 1 = highest
+	Method          string `json:"method"`   // "native" or "docker"
+	Priority        int    `json:"priority"` // 1 = highest
 	Reason          string `json:"reason"`
 	Warning         string `json:"warning,omitempty"`
 	CommandTemplate string `json:"command_template"`
@@ -250,16 +250,11 @@ func resolveLatestSchemaVersion(schemaURL string) string {
 		return ""
 	}
 
-	// Parse allOf[0].$ref: "v2.12/krakend.json" → "2.12"
-	if allOf, ok := schema["allOf"].([]interface{}); ok && len(allOf) > 0 {
-		if ref, ok := allOf[0].(map[string]interface{}); ok {
-			if refURL, ok := ref["$ref"].(string); ok {
-				if strings.HasPrefix(refURL, "v") {
-					parts := strings.Split(refURL, "/")
-					if len(parts) > 0 {
-						return strings.TrimPrefix(parts[0], "v")
-					}
-				}
+	if refURL, ok := schema["$ref"].(string); ok {
+		if strings.HasPrefix(refURL, "v") {
+			parts := strings.Split(refURL, "/")
+			if len(parts) > 0 {
+				return strings.TrimPrefix(parts[0], "v")
 			}
 		}
 	}
