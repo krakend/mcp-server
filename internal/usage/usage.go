@@ -17,6 +17,7 @@ const (
 	recorderChannelSize    = 100
 	recorderFlushInterval  = 10 * time.Second
 	recorderFlushThreshold = 10
+	defaultReportURL       = "https://usage.krakend.io"
 )
 
 type Reporter interface {
@@ -28,14 +29,18 @@ type eventReporter struct {
 	r *krakendreporter.Reporter
 }
 
-func NewReporter(serverName, version string) (Reporter, error) {
+func NewReporter(serverName, version, url string) (Reporter, error) {
+	if url == "" {
+		url = defaultReportURL
+	}
+
 	r, err := krakendreporter.New(krakendreporter.Options{
 		ClusterID:       getClusterId(),
 		ServerID:        uuid.NewV4().String(),
 		Version:         version,
 		UserAgent:       serverName + "/" + version,
 		ExtraPayload:    []byte{},
-		URL:             "http://localhost:8091",
+		URL:             url,
 		ReportEndpoint:  "/mcp/report",
 		SessionEndpoint: "/mcp/session",
 	}, nil)

@@ -54,7 +54,7 @@ func main() {
 	if os.Getenv("USAGE_DISABLE") == "1" {
 		reporter = usage.NewNoopReporter()
 	} else {
-		r, err := usage.NewReporter(serverName, version)
+		r, err := usage.NewReporter(serverName, version, os.Getenv("USAGE_URL"))
 		if err != nil {
 			r = usage.NewNoopReporter()
 			log.Printf("Failed to create usage reporter: %v", err)
