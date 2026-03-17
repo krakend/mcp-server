@@ -114,8 +114,13 @@ func main() {
 	// Using old router matcher to pass all methods to MCP handler
 	mux.HandleFunc("/", httpHandler)
 
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = defaultHttpPort
+	}
+
 	s := &http.Server{
-		Addr:    ":" + defaultHttpPort,
+		Addr:    ":" + port,
 		Handler: mux,
 	}
 
