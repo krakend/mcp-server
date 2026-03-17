@@ -33,9 +33,7 @@ const (
 	indexVersionFile = "search/.index_version"
 )
 
-var (
-	dataDir string // Data directory for documentation and search index
-)
+var dataDir string // Data directory for documentation and search index
 
 func init() {
 	// Strategy 1: Try user home directory first (standalone installation)
@@ -52,14 +50,14 @@ func init() {
 		}
 
 		// Try to create it - this is the expected path for standalone installations
-		if err := os.MkdirAll(userDataDir, 0755); err == nil {
+		if err := os.MkdirAll(userDataDir, 0o755); err == nil {
 			// Successfully created, use it
 			dataDir = userDataDir
 			log.Printf("✓ Data directory created: %s", dataDir)
 
 			// Create subdirectories
-			os.MkdirAll(filepath.Join(dataDir, "docs"), 0755)
-			os.MkdirAll(filepath.Join(dataDir, "search"), 0755)
+			os.MkdirAll(filepath.Join(dataDir, "docs"), 0o755)
+			os.MkdirAll(filepath.Join(dataDir, "search"), 0o755)
 			return
 		}
 
@@ -90,8 +88,8 @@ func init() {
 	log.Printf("⚠️  Data directory (fallback): %s", dataDir)
 
 	// Try to create it
-	os.MkdirAll(filepath.Join(dataDir, "docs"), 0755)
-	os.MkdirAll(filepath.Join(dataDir, "search"), 0755)
+	os.MkdirAll(filepath.Join(dataDir, "docs"), 0o755)
+	os.MkdirAll(filepath.Join(dataDir, "search"), 0o755)
 }
 
 // isProcessRunning is implemented in platform-specific files:
@@ -162,7 +160,7 @@ func acquireLock() error {
 		}
 
 		// Try to create lock file with our PID
-		err := os.WriteFile(lockPath, []byte(strconv.Itoa(ourPID)), 0644)
+		err := os.WriteFile(lockPath, []byte(strconv.Itoa(ourPID)), 0o644)
 		if err != nil {
 			return fmt.Errorf("failed to create lock file: %w", err)
 		}
@@ -229,7 +227,7 @@ func acquireLockWithContext(ctx context.Context) error {
 			}
 
 			// Try to create lock file
-			err := os.WriteFile(lockPath, []byte(strconv.Itoa(ourPID)), 0644)
+			err := os.WriteFile(lockPath, []byte(strconv.Itoa(ourPID)), 0o644)
 			if err != nil {
 				return fmt.Errorf("failed to create lock file: %w", err)
 			}
@@ -356,9 +354,7 @@ type indexHolder struct {
 	wg sync.WaitGroup
 }
 
-var (
-	indexMgr *indexHolder
-)
+var indexMgr *indexHolder
 
 // InitializeDocSearch initializes the documentation search system
 // Priority: Local docs (if exist and recent) > Embedded docs (always available)
@@ -472,10 +468,10 @@ func getIndexVersion() int {
 // writeIndexVersion writes the current index schema version to disk
 func writeIndexVersion() error {
 	versionPath := filepath.Join(dataDir, indexVersionFile)
-	os.MkdirAll(filepath.Dir(versionPath), 0755)
+	os.MkdirAll(filepath.Dir(versionPath), 0o755)
 
 	content := fmt.Sprintf("%d", indexing.IndexSchemaVersion)
-	return os.WriteFile(versionPath, []byte(content), 0644)
+	return os.WriteFile(versionPath, []byte(content), 0o644)
 }
 
 // extractEmbeddedIndex extracts the embedded search index to local storage
@@ -483,7 +479,7 @@ func extractEmbeddedIndex() error {
 	indexPath := filepath.Join(dataDir, indexDir)
 
 	// Create index directory
-	if err := os.MkdirAll(indexPath, 0755); err != nil {
+	if err := os.MkdirAll(indexPath, 0o755); err != nil {
 		return fmt.Errorf("failed to create index directory: %w", err)
 	}
 
@@ -494,18 +490,18 @@ func extractEmbeddedIndex() error {
 
 	// Also extract embedded docs
 	docsPath := filepath.Join(dataDir, "docs")
-	os.MkdirAll(docsPath, 0755)
+	os.MkdirAll(docsPath, 0o755)
 
 	// Extract llms-full.txt
 	if docsData, err := defaultDataProvider.ReadFile("data/docs/llms-full.txt"); err == nil {
-		if err := os.WriteFile(filepath.Join(docsPath, "llms-full.txt"), docsData, 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(docsPath, "llms-full.txt"), docsData, 0o644); err != nil {
 			return fmt.Errorf("failed to extract llms-full.txt: %w", err)
 		}
 	}
 
 	// Extract cache.meta
 	if metaData, err := defaultDataProvider.ReadFile("data/docs/cache.meta"); err == nil {
-		if err := os.WriteFile(filepath.Join(docsPath, "cache.meta"), metaData, 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(docsPath, "cache.meta"), metaData, 0o644); err != nil {
 			return fmt.Errorf("failed to extract cache.meta: %w", err)
 		}
 	}
@@ -533,7 +529,7 @@ func extractEmbeddedDir(embedPath, localPath string) error {
 
 		if entry.IsDir() {
 			// Create directory and recurse
-			if err := os.MkdirAll(localFile, 0755); err != nil {
+			if err := os.MkdirAll(localFile, 0o755); err != nil {
 				return fmt.Errorf("failed to create directory %s: %w", localFile, err)
 			}
 			if err := extractEmbeddedDir(embeddedFile, localFile); err != nil {
@@ -545,7 +541,7 @@ func extractEmbeddedDir(embedPath, localPath string) error {
 			if err != nil {
 				return fmt.Errorf("failed to read embedded file %s: %w", embeddedFile, err)
 			}
-			if err := os.WriteFile(localFile, data, 0644); err != nil {
+			if err := os.WriteFile(localFile, data, 0o644); err != nil {
 				return fmt.Errorf("failed to write file %s: %w", localFile, err)
 			}
 		}
@@ -583,7 +579,7 @@ func downloadDocumentation() error {
 
 	// Ensure docs directory exists
 	docsPath := filepath.Join(dataDir, "docs")
-	if err := os.MkdirAll(docsPath, 0755); err != nil {
+	if err := os.MkdirAll(docsPath, 0o755); err != nil {
 		return fmt.Errorf("failed to create docs directory: %w", err)
 	}
 
@@ -646,7 +642,7 @@ func indexChunks(chunks []indexing.DocChunk) error {
 	os.RemoveAll(tempIndexPath)
 
 	// Create directory for temp index
-	if err := os.MkdirAll(filepath.Dir(tempIndexPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(tempIndexPath), 0o755); err != nil {
 		return fmt.Errorf("failed to create temp index directory: %w", err)
 	}
 
@@ -927,7 +923,7 @@ func SearchDocumentation(ctx context.Context, req *mcp.CallToolRequest, input Se
 		SourceURLs: []string{"https://www.krakend.io/docs/"},
 	}
 
-	return nil, output, nil
+	return &mcp.CallToolResult{Meta: map[string]interface{}{"total_hits": output.TotalHits}}, output, nil
 }
 
 // RefreshDocumentationIndex forces refresh of documentation index

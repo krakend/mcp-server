@@ -4,31 +4,68 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 
+	"github.com/krakend/mcp-server/internal/usage"
 	"github.com/krakend/mcp-server/tools"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 const (
-	version     = "0.6.3"
-	serverName  = "krakend-mcp-server"
-	description = "MCP server for KrakenD API Gateway configuration assistance"
+	version         = "0.6.3"
+	defaultHttpPort = "8090"
+	serverName      = "krakend-mcp-server"
+	description     = "MCP server for KrakenD API Gateway configuration assistance"
 )
 
 func main() {
-	// Handle version flag
-	if len(os.Args) > 1 && os.Args[1] == "--version" {
-		fmt.Printf("%s version %s\n", serverName, version)
-		os.Exit(0)
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() {
+		select {
+		case sig := <-sigs:
+			log.Println("Signal intercepted:", sig)
+			cancel()
+		case <-ctx.Done():
+		}
+	}()
+
+	serveMode := false
+	if len(os.Args) > 1 {
+		if os.Args[1] == "--version" {
+			fmt.Printf("%s version %s\n", serverName, version)
+			os.Exit(0)
+		}
+
+		serveMode = os.Args[1] == "--http"
 	}
 
 	// Set up logging to stderr (MCP uses stdout for protocol)
 	log.SetOutput(os.Stderr)
 	log.Printf("%s v%s starting...", serverName, version)
 
+	var reporter usage.Reporter
+	if os.Getenv("USAGE_DISABLE") == "1" {
+		reporter = usage.NewNoopReporter()
+	} else {
+		r, err := usage.NewReporter(serverName, version, os.Getenv("USAGE_URL"))
+		if err != nil {
+			r = usage.NewNoopReporter()
+			log.Printf("Failed to create usage reporter: %v", err)
+		}
+		reporter = r
+	}
+
 	// Create MCP server
 	server := createMCPServer()
+
+	server.AddReceivingMiddleware(usage.NewUsageMethodHandlerFactory(ctx, reporter))
 
 	// Register all tools, resources, and prompts
 	if err := registerTools(server); err != nil {
@@ -41,8 +78,6 @@ func main() {
 		log.Fatalf("Failed to register prompts: %v", err)
 	}
 
-	log.Printf("✓ Server ready and waiting for connections")
-
 	// Set up cleanup on shutdown
 	defer func() {
 		if err := tools.CloseDocSearch(); err != nil {
@@ -50,11 +85,54 @@ func main() {
 		}
 	}()
 
-	// Run server with stdio transport
-	ctx := context.Background()
-	if err := server.Run(ctx, &mcp.StdioTransport{}); err != nil {
-		log.Fatalf("Server error: %v", err)
+	if !serveMode {
+		log.Printf("✓ Running in stdio mode")
+		if err := server.Run(ctx, &mcp.StdioTransport{}); err != nil {
+			if err == context.Canceled {
+				log.Printf("Server gracefully stopped")
+				os.Exit(0)
+			}
+			log.Fatalf("Server run error: %v", err)
+		}
+		os.Exit(0)
 	}
+
+	mcpHandler := mcp.NewStreamableHTTPHandler(
+		func(_ *http.Request) *mcp.Server {
+			return server
+		},
+		&mcp.StreamableHTTPOptions{
+			Stateless:    false,
+			JSONResponse: true,
+		},
+	)
+
+	httpHandler := http.HandlerFunc(mcpHandler.ServeHTTP)
+
+	mux := http.NewServeMux()
+
+	// Using old router matcher to pass all methods to MCP handler
+	mux.HandleFunc("/", httpHandler)
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = defaultHttpPort
+	}
+
+	s := &http.Server{
+		Addr:    ":" + port,
+		Handler: mux,
+	}
+
+	go func() {
+		log.Printf("✓ Starting server on %s", s.Addr)
+		s.ListenAndServe()
+	}()
+
+	<-ctx.Done()
+	log.Printf("Shutting down server...")
+	s.Shutdown(ctx)
+	log.Printf("Server gracefully stopped")
 }
 
 // createMCPServer initializes the MCP server
@@ -62,9 +140,10 @@ func createMCPServer() *mcp.Server {
 	server := mcp.NewServer(
 		&mcp.Implementation{
 			Name:    serverName,
+			Title:   description,
 			Version: version,
 		},
-		nil, // Default options
+		nil,
 	)
 
 	log.Printf("Server initialized: %s v%s", serverName, version)
@@ -98,12 +177,6 @@ func registerTools(server *mcp.Server) error {
 		return fmt.Errorf("failed to register feature tools: %w", err)
 	}
 	toolCount += 2
-
-	// Phase 1: Generation tools (4 tools)
-	if err := tools.RegisterGenerationTools(server); err != nil {
-		return fmt.Errorf("failed to register generation tools: %w", err)
-	}
-	toolCount += 4
 
 	log.Printf("✓ All tools registered: %d tools (validation + runtime + features + generation + doc search)", toolCount)
 	return nil

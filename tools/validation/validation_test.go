@@ -2,6 +2,7 @@ package validation
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -104,8 +105,8 @@ func TestDetectFlexibleConfiguration_EEConfig(t *testing.T) {
 			"paths": ["templates/"]
 		}
 	}`
-	os.WriteFile("flexible_config.json", []byte(config), 0644)
-	os.WriteFile("krakend.json", []byte("{}"), 0644)
+	os.WriteFile("flexible_config.json", []byte(config), 0o644)
+	os.WriteFile("krakend.json", []byte("{}"), 0o644)
 
 	fc := DetectFlexibleConfiguration()
 
@@ -237,7 +238,6 @@ func TestValidateWithSchema_ValidBasicConfig(t *testing.T) {
 	}`
 
 	result, err := validateWithSchema(config)
-
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -260,8 +260,9 @@ func TestBuildKrakenDCommand(t *testing.T) {
 	if cmd == nil {
 		t.Fatal("Expected command, got nil")
 	}
-	if cmd.Path != "krakend" {
-		t.Errorf("Expected path=krakend, got %s", cmd.Path)
+
+	if filepath.Base(cmd.Path) != "krakend" {
+		t.Errorf("Expected path=krakend, got %s", filepath.Base(cmd.Path))
 	}
 
 	args := cmd.Args

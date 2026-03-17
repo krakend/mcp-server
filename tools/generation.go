@@ -78,9 +78,9 @@ func GetFeatureConfigTemplate(ctx context.Context, req *mcp.CallToolRequest, inp
 
 // Backend represents a backend service configuration
 type Backend struct {
-	URL        string                 `json:"url"`
-	Method     string                 `json:"method,omitempty"`
-	Host       []string               `json:"host,omitempty"`
+	URL         string                 `json:"url"`
+	Method      string                 `json:"method,omitempty"`
+	Host        []string               `json:"host,omitempty"`
 	ExtraConfig map[string]interface{} `json:"extra_config,omitempty"`
 }
 
@@ -146,11 +146,11 @@ func GenerateBackendConfig(ctx context.Context, req *mcp.CallToolRequest, input 
 
 // GenerateEndpointConfigInput defines input for generate_endpoint_config tool
 type GenerateEndpointConfigInput struct {
-	Method   string                   `json:"method" jsonschema:"HTTP method (GET, POST, etc)"`
-	Path     string                   `json:"path" jsonschema:"Endpoint path"`
-	Backends []Backend                `json:"backends" jsonschema:"Backend configurations"`
-	ExtraConfig map[string]interface{} `json:"extra_config,omitempty"`
-	OutputEncoding string              `json:"output_encoding,omitempty"`
+	Method         string                 `json:"method" jsonschema:"HTTP method (GET, POST, etc)"`
+	Path           string                 `json:"path" jsonschema:"Endpoint path"`
+	Backends       []Backend              `json:"backends" jsonschema:"Backend configurations"`
+	ExtraConfig    map[string]interface{} `json:"extra_config,omitempty"`
+	OutputEncoding string                 `json:"output_encoding,omitempty"`
 }
 
 // GenerateEndpointConfigOutput defines output for generate_endpoint_config tool
@@ -239,7 +239,7 @@ func GenerateEndpointConfig(ctx context.Context, req *mcp.CallToolRequest, input
 
 	// Check for authentication if POST/PUT/DELETE
 	method := strings.ToUpper(input.Method)
-	if (method == "POST" || method == "PUT" || method == "DELETE") {
+	if method == "POST" || method == "PUT" || method == "DELETE" {
 		if input.ExtraConfig == nil || input.ExtraConfig["auth/validator"] == nil {
 			warnings = append(warnings, fmt.Sprintf("%s endpoint without authentication - ensure this is intentional", method))
 		}
@@ -254,10 +254,10 @@ func GenerateEndpointConfig(ctx context.Context, req *mcp.CallToolRequest, input
 
 // GenerateBasicConfigInput defines input for a helper to generate a complete basic config
 type GenerateBasicConfigInput struct {
-	Port      int                    `json:"port,omitempty" jsonschema:"Server port (optional, defaults to 8080)"`
+	Port      int                           `json:"port,omitempty" jsonschema:"Server port (optional, defaults to 8080)"`
 	Endpoints []GenerateEndpointConfigInput `json:"endpoints" jsonschema:"Endpoint configurations"`
-	Timeout   string                 `json:"timeout,omitempty" jsonschema:"Global timeout (optional)"`
-	CacheTTL  string                 `json:"cache_ttl,omitempty"`
+	Timeout   string                        `json:"timeout,omitempty" jsonschema:"Global timeout (optional)"`
+	CacheTTL  string                        `json:"cache_ttl,omitempty"`
 }
 
 // GenerateBasicConfigOutput defines output for basic config generation
@@ -332,52 +332,4 @@ func GenerateBasicConfig(ctx context.Context, req *mcp.CallToolRequest, input Ge
 		Warnings:      allWarnings,
 		BestPractices: allBestPractices,
 	}, nil
-}
-
-// RegisterGenerationTools registers all configuration generation tools
-func RegisterGenerationTools(server *mcp.Server) error {
-	// Ensure feature data is loaded
-	if featureCatalog == nil {
-		if err := LoadFeatureData(); err != nil {
-			return fmt.Errorf("failed to load feature data: %w", err)
-		}
-	}
-
-	// Tool 11: get_feature_config_template
-	mcp.AddTool(server,
-		&mcp.Tool{
-			Name:        "get_feature_config_template",
-			Description: "Get configuration template for a specific KrakenD feature with required/optional fields",
-		},
-		GetFeatureConfigTemplate,
-	)
-
-	// Tool 12: generate_endpoint_config
-	mcp.AddTool(server,
-		&mcp.Tool{
-			Name:        "generate_endpoint_config",
-			Description: "Generate a complete endpoint configuration with backends and best practices",
-		},
-		GenerateEndpointConfig,
-	)
-
-	// Tool 13: generate_backend_config
-	mcp.AddTool(server,
-		&mcp.Tool{
-			Name:        "generate_backend_config",
-			Description: "Generate a backend service configuration",
-		},
-		GenerateBackendConfig,
-	)
-
-	// Bonus tool: generate_basic_config (helper for complete configs)
-	mcp.AddTool(server,
-		&mcp.Tool{
-			Name:        "generate_basic_config",
-			Description: "Generate a complete basic KrakenD configuration with multiple endpoints",
-		},
-		GenerateBasicConfig,
-	)
-
-	return nil
 }
