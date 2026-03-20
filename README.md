@@ -40,17 +40,17 @@ This script will:
 
 ```bash
 # macOS Apple Silicon
-curl -L -o krakend-mcp-server https://github.com/krakend/mcp-server/releases/download/v0.6.3/krakend-mcp-darwin-arm64
+curl -L -o krakend-mcp-server https://github.com/krakend/mcp-server/releases/download/v0.7.0/krakend-mcp-darwin-arm64
 chmod +x krakend-mcp-server
 sudo mv krakend-mcp-server /usr/local/bin/
 
 # macOS Intel
-curl -L -o krakend-mcp-server https://github.com/krakend/mcp-server/releases/download/v0.6.3/krakend-mcp-darwin-amd64
+curl -L -o krakend-mcp-server https://github.com/krakend/mcp-server/releases/download/v0.7.0/krakend-mcp-darwin-amd64
 chmod +x krakend-mcp-server
 sudo mv krakend-mcp-server /usr/local/bin/
 
 # Linux x64
-curl -L -o krakend-mcp-server https://github.com/krakend/mcp-server/releases/download/v0.6.3/krakend-mcp-linux-amd64
+curl -L -o krakend-mcp-server https://github.com/krakend/mcp-server/releases/download/v0.7.0/krakend-mcp-linux-amd64
 chmod +x krakend-mcp-server
 sudo mv krakend-mcp-server /usr/local/bin/
 

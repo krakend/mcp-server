@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	version         = "0.6.3"
+	version         = "0.7.0"
 	defaultHttpPort = "8090"
 	serverName      = "krakend-mcp-server"
 	description     = "MCP server for KrakenD API Gateway configuration assistance"

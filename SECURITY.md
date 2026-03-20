@@ -8,8 +8,8 @@ KrakenD MCP Server is an MCP (Model Context Protocol) server that runs locally o
 
 | Version | Supported          | Notes                           |
 | ------- | ------------------ | ------------------------------- |
-| 0.6.x   | :white_check_mark: | Current stable release          |
-| < 0.6.0 | :x:                | Please upgrade to latest version|
+| 0.7.x   | :white_check_mark: | Current stable release          |
+| < 0.7.0 | :x:                | Please upgrade to latest version|
 
 We recommend always using the latest version from the `main` branch for the most up-to-date security fixes.
 
