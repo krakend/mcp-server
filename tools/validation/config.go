@@ -73,54 +73,7 @@ func buildKrakenDCommand(env *ValidationEnvironment, command string, configFile 
 }
 
 // buildDockerKrakenDCommand constructs a Docker KrakenD command with FC support
-func buildDockerKrakenDCommand(env *ValidationEnvironment, command string, configFile string) *exec.Cmd {
-	fc := env.FlexibleConfig
-
-	// Base Docker args
-	dockerArgs := []string{
-		"run", "--rm",
-		"-v", fmt.Sprintf("%s:/etc/krakend", filepath.Dir(configFile)),
-	}
-
-	// If FC not detected or EE FC, use simple Docker command
-	if fc == nil || !fc.Detected || fc.Type == "ee" {
-		// EE or no FC: standard docker command
-		image := "krakend:latest"
-		if fc != nil && fc.Type == "ee" {
-			image = "krakend/krakend-ee:latest"
-		}
-
-		dockerArgs = append(dockerArgs, image, command, "-c", "/etc/krakend/"+filepath.Base(configFile))
-		if command == "check" {
-			dockerArgs = append(dockerArgs, "-l") // Enable linting for detailed error locations
-		}
-		return exec.Command("docker", dockerArgs...)
-	}
-
-	// CE FC: add environment variables
-	if fc.SettingsDir != "" {
-		dockerArgs = append(dockerArgs, "-e", "FC_ENABLE=1")
-		dockerArgs = append(dockerArgs, "-e", "FC_SETTINGS=/etc/krakend/"+fc.SettingsDir)
-	}
-	if fc.TemplatesDir != "" {
-		dockerArgs = append(dockerArgs, "-e", "FC_TEMPLATES=/etc/krakend/"+fc.TemplatesDir)
-	}
-	if fc.PartialsDir != "" {
-		dockerArgs = append(dockerArgs, "-e", "FC_PARTIALS=/etc/krakend/"+fc.PartialsDir)
-	}
-	dockerArgs = append(dockerArgs, "-e", "FC_OUT=/etc/krakend/out.json")
-
-	// Add image and command
-	dockerArgs = append(dockerArgs, "krakend:latest", command, "-c", "/etc/krakend/"+filepath.Base(configFile))
-	if command == "check" {
-		dockerArgs = append(dockerArgs, "-l") // Enable linting for detailed error locations
-	}
-
-	return exec.Command("docker", dockerArgs...)
-}
-
-// buildDockerKrakenDCommandWithImage constructs a Docker KrakenD command with custom image
-func buildDockerKrakenDCommandWithImage(env *ValidationEnvironment, command string, configFile string, dockerImage string) *exec.Cmd {
+func buildDockerKrakenDCommand(env *ValidationEnvironment, command string, configFile string, dockerImage string) *exec.Cmd {
 	fc := env.FlexibleConfig
 
 	// Base Docker args
@@ -139,8 +92,8 @@ func buildDockerKrakenDCommandWithImage(env *ValidationEnvironment, command stri
 	}
 
 	// CE FC: add environment variables
+	dockerArgs = append(dockerArgs, "-e", "FC_ENABLE=1")
 	if fc.SettingsDir != "" {
-		dockerArgs = append(dockerArgs, "-e", "FC_ENABLE=1")
 		dockerArgs = append(dockerArgs, "-e", "FC_SETTINGS=/etc/krakend/"+fc.SettingsDir)
 	}
 	if fc.TemplatesDir != "" {
@@ -151,7 +104,7 @@ func buildDockerKrakenDCommandWithImage(env *ValidationEnvironment, command stri
 	}
 	dockerArgs = append(dockerArgs, "-e", "FC_OUT=/etc/krakend/out.json")
 
-	// Add custom image and command
+	// Add image and command
 	dockerArgs = append(dockerArgs, dockerImage, command, "-c", "/etc/krakend/"+filepath.Base(configFile))
 	if command == "check" {
 		dockerArgs = append(dockerArgs, "-l") // Enable linting for detailed error locations
@@ -457,7 +410,7 @@ func validateWithDockerVersion(configJSON string, tempDir string, targetVersion 
 		}
 
 		configFile = env.FlexibleConfig.BaseTemplate
-		cmd = buildDockerKrakenDCommandWithImage(env, "check", filepath.Join(cwd, configFile), dockerImage)
+		cmd = buildDockerKrakenDCommand(env, "check", filepath.Join(cwd, configFile), dockerImage)
 	} else {
 		// Create temporary file for standard config
 		if tempDir == "" {

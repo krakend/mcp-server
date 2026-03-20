@@ -6,13 +6,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/krakend/mcp-server/internal/features"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
+
 
 // SecurityIssue represents a security vulnerability or concern
 type SecurityIssue struct {
@@ -138,6 +138,44 @@ func AuditSecurity(ctx context.Context, req *mcp.CallToolRequest, input AuditSec
 	return nil, *result, nil
 }
 
+// parseSeverity returns the severity level for a line of krakend audit output.
+func parseSeverity(line string) string {
+	upper := strings.ToUpper(line)
+	switch {
+	case strings.Contains(upper, "CRITICAL"):
+		return "critical"
+	case strings.Contains(upper, "HIGH"):
+		return "high"
+	case strings.Contains(upper, "MEDIUM"):
+		return "medium"
+	case strings.Contains(upper, "LOW"):
+		return "low"
+	default:
+		return "info"
+	}
+}
+
+// parseAuditOutput splits krakend audit output into SecurityIssue entries, skipping "info" lines.
+func parseAuditOutput(output string) []SecurityIssue {
+	var issues []SecurityIssue
+	for _, line := range strings.Split(output, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		if severity := parseSeverity(line); severity != "info" {
+			issues = append(issues, SecurityIssue{
+				Severity:    severity,
+				Category:    "security",
+				Title:       line,
+				Description: line,
+				Remediation: "Review KrakenD security documentation",
+			})
+		}
+	}
+	return issues
+}
+
 // auditWithNativeKrakenD audits using native krakend binary
 func auditWithNativeKrakenD(configJSON string, tempDir string) (*AuditSecurityOutput, error) {
 	env := DetectEnvironment()
@@ -182,44 +220,8 @@ func auditWithNativeKrakenD(configJSON string, tempDir string) (*AuditSecurityOu
 	}
 
 	// Parse krakend audit output
-	// Note: krakend audit output format may vary, this is a basic parser
-	if strings.Contains(output, "CRITICAL") || strings.Contains(output, "HIGH") {
-		result.Valid = false
-	} else {
-		result.Valid = true
-	}
-
-	// Basic parsing of output into issues
-	lines := strings.Split(output, "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-
-		// Detect severity keywords
-		severity := "info"
-		if strings.Contains(strings.ToUpper(line), "CRITICAL") {
-			severity = "critical"
-		} else if strings.Contains(strings.ToUpper(line), "HIGH") {
-			severity = "high"
-		} else if strings.Contains(strings.ToUpper(line), "MEDIUM") {
-			severity = "medium"
-		} else if strings.Contains(strings.ToUpper(line), "LOW") {
-			severity = "low"
-		}
-
-		if severity != "info" {
-			result.Issues = append(result.Issues, SecurityIssue{
-				Severity:    severity,
-				Category:    "security",
-				Title:       line,
-				Description: line,
-				Remediation: "Review KrakenD security documentation",
-			})
-		}
-	}
-
+	result.Issues = parseAuditOutput(output)
+	result.Valid = !strings.Contains(output, "CRITICAL") && !strings.Contains(output, "HIGH")
 	result.Summary = fmt.Sprintf("Security audit completed with %d issue(s) found (native KrakenD)", len(result.Issues))
 	return result, nil
 }
@@ -228,19 +230,21 @@ func auditWithNativeKrakenD(configJSON string, tempDir string) (*AuditSecurityOu
 func auditWithDocker(configJSON string, tempDir string) (*AuditSecurityOutput, error) {
 	env := DetectEnvironment()
 
+	// Determine image
+	dockerImage := "krakend:latest"
+	if env.FlexibleConfig != nil && env.FlexibleConfig.Type == "ee" {
+		dockerImage = "krakend/krakend-ee:latest"
+	}
+
 	var configFile string
-	var cmd *exec.Cmd
 
 	// If Flexible Configuration is detected, mount project directory
 	if env.FlexibleConfig != nil && env.FlexibleConfig.Detected && env.FlexibleConfig.BaseTemplate != "" {
-		// Get current working directory (project root)
 		cwd, err := os.Getwd()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get working directory: %w", err)
 		}
-
-		configFile = env.FlexibleConfig.BaseTemplate
-		cmd = buildDockerKrakenDCommand(env, "audit", filepath.Join(cwd, configFile))
+		configFile = filepath.Join(cwd, env.FlexibleConfig.BaseTemplate)
 	} else {
 		// Create temporary file for standard config
 		if tempDir == "" {
@@ -252,13 +256,10 @@ func auditWithDocker(configJSON string, tempDir string) (*AuditSecurityOutput, e
 			return nil, fmt.Errorf("failed to write temp file: %w", err)
 		}
 		defer os.Remove(tempFile)
-
-		// Run docker with krakend audit (standard)
-		cmd = exec.Command("docker", "run", "--rm",
-			"-v", fmt.Sprintf("%s:/etc/krakend/krakend.json:ro", tempFile),
-			"krakend:latest",
-			"audit", "-c", "/etc/krakend/krakend.json")
+		configFile = tempFile
 	}
+
+	cmd := buildDockerKrakenDCommand(env, "audit", configFile, dockerImage)
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -277,43 +278,8 @@ func auditWithDocker(configJSON string, tempDir string) (*AuditSecurityOutput, e
 		return nil, fmt.Errorf("docker audit command failed: %w", err)
 	}
 
-	// Parse output similar to native
-	if strings.Contains(output, "CRITICAL") || strings.Contains(output, "HIGH") {
-		result.Valid = false
-	} else {
-		result.Valid = true
-	}
-
-	// Basic parsing
-	lines := strings.Split(output, "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-
-		severity := "info"
-		if strings.Contains(strings.ToUpper(line), "CRITICAL") {
-			severity = "critical"
-		} else if strings.Contains(strings.ToUpper(line), "HIGH") {
-			severity = "high"
-		} else if strings.Contains(strings.ToUpper(line), "MEDIUM") {
-			severity = "medium"
-		} else if strings.Contains(strings.ToUpper(line), "LOW") {
-			severity = "low"
-		}
-
-		if severity != "info" {
-			result.Issues = append(result.Issues, SecurityIssue{
-				Severity:    severity,
-				Category:    "security",
-				Title:       line,
-				Description: line,
-				Remediation: "Review KrakenD security documentation",
-			})
-		}
-	}
-
+	result.Issues = parseAuditOutput(output)
+	result.Valid = !strings.Contains(output, "CRITICAL") && !strings.Contains(output, "HIGH")
 	result.Summary = fmt.Sprintf("Security audit completed with %d issue(s) found (Docker)", len(result.Issues))
 	return result, nil
 }
@@ -341,18 +307,15 @@ func auditWithDockerVersion(configJSON string, tempDir string, targetVersion str
 	}
 
 	var configFile string
-	var cmd *exec.Cmd
 
 	// If Flexible Configuration is detected, mount project directory
 	if env.FlexibleConfig != nil && env.FlexibleConfig.Detected && env.FlexibleConfig.BaseTemplate != "" {
-		// Get current working directory (project root)
 		cwd, err := os.Getwd()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get working directory: %w", err)
 		}
 
-		configFile = env.FlexibleConfig.BaseTemplate
-		cmd = buildDockerKrakenDCommandWithImage(env, "audit", filepath.Join(cwd, configFile), dockerImage)
+		configFile = filepath.Join(cwd, env.FlexibleConfig.BaseTemplate)
 	} else {
 		// Create temporary file for standard config
 		if tempDir == "" {
@@ -364,13 +327,10 @@ func auditWithDockerVersion(configJSON string, tempDir string, targetVersion str
 			return nil, fmt.Errorf("failed to write temp file: %w", err)
 		}
 		defer os.Remove(tempFile)
-
-		// Run docker with krakend audit using version-specific image
-		cmd = exec.Command("docker", "run", "--rm",
-			"-v", fmt.Sprintf("%s:/etc/krakend/krakend.json:ro", tempFile),
-			dockerImage,
-			"audit", "-c", "/etc/krakend/krakend.json")
+		configFile = tempFile
 	}
+
+	cmd := buildDockerKrakenDCommand(env, "audit", configFile, dockerImage)
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -389,43 +349,8 @@ func auditWithDockerVersion(configJSON string, tempDir string, targetVersion str
 		return nil, fmt.Errorf("docker audit command failed: %w", err)
 	}
 
-	// Parse output similar to native
-	if strings.Contains(output, "CRITICAL") || strings.Contains(output, "HIGH") {
-		result.Valid = false
-	} else {
-		result.Valid = true
-	}
-
-	// Basic parsing
-	lines := strings.Split(output, "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-
-		severity := "info"
-		if strings.Contains(strings.ToUpper(line), "CRITICAL") {
-			severity = "critical"
-		} else if strings.Contains(strings.ToUpper(line), "HIGH") {
-			severity = "high"
-		} else if strings.Contains(strings.ToUpper(line), "MEDIUM") {
-			severity = "medium"
-		} else if strings.Contains(strings.ToUpper(line), "LOW") {
-			severity = "low"
-		}
-
-		if severity != "info" {
-			result.Issues = append(result.Issues, SecurityIssue{
-				Severity:    severity,
-				Category:    "security",
-				Title:       line,
-				Description: line,
-				Remediation: "Review KrakenD security documentation",
-			})
-		}
-	}
-
+	result.Issues = parseAuditOutput(output)
+	result.Valid = !strings.Contains(output, "CRITICAL") && !strings.Contains(output, "HIGH")
 	result.Summary = fmt.Sprintf("Security audit completed with %d issue(s) found (Docker %s)", len(result.Issues), dockerImage)
 	return result, nil
 }
