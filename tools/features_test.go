@@ -1,9 +1,11 @@
 package tools
 
 import (
+	"context"
 	"testing"
 
 	"github.com/krakend/mcp-server/internal/features"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 const minimalFeatureYAML = `
@@ -210,5 +212,144 @@ func TestDetectEnterpriseFeatures_WithEENamespace(t *testing.T) {
 
 	if !result {
 		t.Error("Expected true for config with EE namespace (auth/api-keys)")
+	}
+}
+
+// listFeaturesYAML has a richer fixture for filter tests: two CE and two EE features
+// across different categories with distinct names and descriptions.
+const listFeaturesYAML = `
+sections:
+  - name: "Traffic Management"
+    features:
+      - name: "Endpoint Rate Limiting"
+        description: "Limit requests per endpoint to prevent overload"
+        url: "/docs/rate-limit"
+        ee: false
+        namespaces:
+          - "qos/ratelimit/router"
+      - name: "Redis Rate Limiting"
+        description: "Distributed rate limiting using Redis"
+        url: "/docs/redis-rate-limit"
+        ee: true
+        namespaces:
+          - "qos/ratelimit/redis"
+  - name: "Authentication"
+    features:
+      - name: "JWT Validation"
+        description: "Validate JSON Web Tokens on every request"
+        url: "/docs/jwt"
+        ee: false
+        namespaces:
+          - "auth/validator"
+      - name: "API Key Authentication"
+        description: "API key-based authentication for enterprise"
+        url: "/docs/api-keys"
+        ee: true
+        namespaces:
+          - "auth/api-keys"
+`
+
+func callListFeatures(t *testing.T, input ListFeaturesInput) ListFeaturesOutput {
+	t.Helper()
+	_, output, err := ListFeatures(context.Background(), &mcp.CallToolRequest{}, input)
+	if err != nil {
+		t.Fatalf("ListFeatures returned unexpected error: %v", err)
+	}
+	return output
+}
+
+func TestListFeatures_NoFilters(t *testing.T) {
+	setMockFeatureFetcher(t, listFeaturesYAML)
+
+	output := callListFeatures(t, ListFeaturesInput{})
+
+	if output.Count != 4 {
+		t.Errorf("expected 4 features, got %d", output.Count)
+	}
+	if len(output.Features) != output.Count {
+		t.Errorf("Count field (%d) does not match slice length (%d)", output.Count, len(output.Features))
+	}
+}
+
+func TestListFeatures_EEFilter(t *testing.T) {
+	setMockFeatureFetcher(t, listFeaturesYAML)
+
+	output := callListFeatures(t, ListFeaturesInput{EE: true})
+
+	if output.Count != 2 {
+		t.Errorf("expected 2 EE features, got %d", output.Count)
+	}
+	for _, f := range output.Features {
+		if f.Edition != "ee" {
+			t.Errorf("expected all features to be 'ee', got %q for %q", f.Edition, f.Name)
+		}
+	}
+}
+
+func TestListFeatures_QueryFilter_MatchesName(t *testing.T) {
+	setMockFeatureFetcher(t, listFeaturesYAML)
+
+	output := callListFeatures(t, ListFeaturesInput{Query: "JWT"})
+
+	if output.Count != 1 {
+		t.Errorf("expected 1 result for query 'JWT', got %d", output.Count)
+	}
+	if output.Features[0].Namespace != "auth/validator" {
+		t.Errorf("unexpected feature returned: %q", output.Features[0].Name)
+	}
+}
+
+func TestListFeatures_QueryFilter_MatchesDescription(t *testing.T) {
+	setMockFeatureFetcher(t, listFeaturesYAML)
+
+	output := callListFeatures(t, ListFeaturesInput{Query: "redis"})
+
+	if output.Count != 1 {
+		t.Errorf("expected 1 result for query 'redis', got %d", output.Count)
+	}
+	if output.Features[0].Namespace != "qos/ratelimit/redis" {
+		t.Errorf("unexpected feature returned: %q", output.Features[0].Name)
+	}
+}
+
+func TestListFeatures_QueryFilter_CaseInsensitive(t *testing.T) {
+	setMockFeatureFetcher(t, listFeaturesYAML)
+
+	lower := callListFeatures(t, ListFeaturesInput{Query: "rate limiting"})
+	upper := callListFeatures(t, ListFeaturesInput{Query: "RATE LIMITING"})
+	mixed := callListFeatures(t, ListFeaturesInput{Query: "Rate Limiting"})
+
+	if lower.Count != upper.Count || lower.Count != mixed.Count {
+		t.Errorf("case-insensitive mismatch: lower=%d upper=%d mixed=%d", lower.Count, upper.Count, mixed.Count)
+	}
+	if lower.Count != 2 {
+		t.Errorf("expected 2 results for 'rate limiting', got %d", lower.Count)
+	}
+}
+
+func TestListFeatures_QueryAndEEFilter_Combined(t *testing.T) {
+	setMockFeatureFetcher(t, listFeaturesYAML)
+
+	// "rate" matches both rate-limit features; ee=true should narrow to the EE one
+	output := callListFeatures(t, ListFeaturesInput{EE: true, Query: "rate"})
+
+	if output.Count != 1 {
+		t.Errorf("expected 1 result for ee+rate, got %d", output.Count)
+	}
+	if output.Features[0].Namespace != "qos/ratelimit/redis" {
+		t.Errorf("unexpected feature: %q", output.Features[0].Name)
+	}
+}
+
+func TestListFeatures_QueryFilter_NoMatch(t *testing.T) {
+	setMockFeatureFetcher(t, listFeaturesYAML)
+
+	output := callListFeatures(t, ListFeaturesInput{Query: "nonexistent"})
+
+	if output.Count != 0 {
+		t.Errorf("expected 0 results for unmatched query, got %d", output.Count)
+	}
+	if output.Features == nil {
+		t.Error("Features slice should not be nil")
 	}
 }

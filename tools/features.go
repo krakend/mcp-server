@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/krakend/mcp-server/internal/features"
@@ -121,7 +122,8 @@ type FeatureSummary struct {
 
 // ListFeaturesInput defines input for list_features tool
 type ListFeaturesInput struct {
-	// No input needed - returns all features
+	EE    bool   `json:"ee,omitempty"    jsonschema:"Filter to Enterprise Edition features only"`
+	Query string `json:"query,omitempty" jsonschema:"Search term matched against feature name and description"`
 }
 
 // ListFeaturesOutput defines output for list_features tool
@@ -130,7 +132,7 @@ type ListFeaturesOutput struct {
 	Count    int              `json:"count"`
 }
 
-// ListFeatures returns all KrakenD features with lightweight info
+// ListFeatures returns KrakenD features with optional filtering by edition and search query
 func ListFeatures(ctx context.Context, req *mcp.CallToolRequest, input ListFeaturesInput) (*mcp.CallToolResult, ListFeaturesOutput, error) {
 	if featureCatalog == nil {
 		if err := LoadFeatureData(); err != nil {
@@ -138,8 +140,19 @@ func ListFeatures(ctx context.Context, req *mcp.CallToolRequest, input ListFeatu
 		}
 	}
 
+	query := strings.ToLower(input.Query)
+
 	summaries := make([]FeatureSummary, 0, len(featureCatalog.Features))
 	for _, feature := range featureCatalog.Features {
+		if input.EE && feature.Edition != "ee" {
+			continue
+		}
+		if query != "" {
+			if !strings.Contains(strings.ToLower(feature.Name), query) &&
+				!strings.Contains(strings.ToLower(feature.Description), query) {
+				continue
+			}
+		}
 		summaries = append(summaries, FeatureSummary{
 			Name:        feature.Name,
 			Namespace:   feature.Namespace,
@@ -256,7 +269,7 @@ func RegisterFeatureTools(server *mcp.Server) error {
 	mcp.AddTool(server,
 		&mcp.Tool{
 			Name:        "list_features",
-			Description: "List all KrakenD features with name, namespace, edition (ce/ee/both), category, and description. Use this to browse available features and check edition requirements.",
+			Description: "List KrakenD features with name, namespace, edition (ce/ee), category, and description. Optionally filter by edition (ee=true for Enterprise-only) or search by keyword across name and description.",
 		},
 		ListFeatures,
 	)

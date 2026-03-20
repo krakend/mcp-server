@@ -318,7 +318,7 @@ The server exposes 7 specialized tools:
 
 | Tool | Description |
 |------|-------------|
-| `list_features` | Browse all KrakenD features with name, namespace, edition, and category |
+| `list_features` | Browse KrakenD features with name, namespace, edition, and category. Filter by `ee` (bool) for Enterprise-only features or `query` (string) to search by name/description |
 
 ### Runtime
 
@@ -361,13 +361,17 @@ audit_security --config krakend.json
 ### Feature Discovery
 
 ```bash
-# List all authentication features
-list_features --category authentication
+# List all features
+list_features
 
-# Returns:
-# - JWT Validation (CE) - Validate JWT tokens
-# - API Key Auth (EE) - API key authentication
-# - OAuth Client (CE) - OAuth 2.0 client flow
+# List Enterprise Edition features only
+list_features --ee true
+
+# Search features by keyword (matches name and description)
+list_features --query "rate limit"
+
+# Combine filters: EE features matching a keyword
+list_features --ee true --query "redis"
 ```
 
 ## Flexible Configuration Support
