@@ -14,7 +14,7 @@ KrakenD MCP Server is a [Model Context Protocol](https://modelcontextprotocol.io
 
 - ✅ **Configuration Validation** - Version-aware validation with specific error messages
 - 🔒 **Security Auditing** - Comprehensive security analysis with actionable recommendations
-- 🎯 **Feature Discovery** - Browse 100+ KrakenD features with CE/EE compatibility
+- 🎯 **Feature Discovery** - Browse KrakenD features with CE/EE compatibility (offline-first, auto-refreshes every 7 days)
 - 📖 **Documentation Search** - Full-text search through official KrakenD documentation
 - 🔍 **Edition Detection** - Automatic CE vs EE feature detection
 - ⚡ **Flexible Configuration** - Automatic detection and support for both CE and EE FC variants
@@ -242,11 +242,11 @@ KrakenD MCP Server includes an intelligent documentation search system powered b
 
 ### How It Works
 
-**Embedded Documentation (Offline-First)**
-- Official KrakenD documentation is **embedded directly in the binary** during build
+**Embedded Data (Offline-First)**
+- Official KrakenD documentation and feature matrix are **embedded directly in the binary** during build
 - Pre-built search index included (~5.7MB)
-- **Works completely offline** - no internet required
-- Instant availability on first run
+- **Works completely offline** - no internet required on first run
+- Both docs and feature data auto-refresh every 7 days in the background at startup
 
 **Local Documentation Updates**
 - Use `refresh_documentation_index` tool to download latest documentation
@@ -318,7 +318,7 @@ The server exposes 7 specialized tools:
 
 | Tool | Description |
 |------|-------------|
-| `list_features` | Browse all KrakenD features with name, namespace, edition, and category |
+| `list_features` | Browse KrakenD features with name, namespace, edition, and category. Filter by `ee` (bool) for Enterprise-only features or `query` (string) to search by name/description |
 
 ### Runtime
 
@@ -361,13 +361,17 @@ audit_security --config krakend.json
 ### Feature Discovery
 
 ```bash
-# List all authentication features
-list_features --category authentication
+# List all features
+list_features
 
-# Returns:
-# - JWT Validation (CE) - Validate JWT tokens
-# - API Key Auth (EE) - API key authentication
-# - OAuth Client (CE) - OAuth 2.0 client flow
+# List Enterprise Edition features only
+list_features --ee true
+
+# Search features by keyword (matches name and description)
+list_features --query "rate limit"
+
+# Combine filters: EE features matching a keyword
+list_features --ee true --query "redis"
 ```
 
 ## Flexible Configuration Support
@@ -419,10 +423,11 @@ go build -o krakend-mcp-server
 ```
 
 The build script:
-1. Downloads official KrakenD documentation
-2. Indexes documentation with Bleve
-3. Embeds docs + index into binary
-4. Compiles cross-platform binaries
+1. Downloads the KrakenD feature matrix YAML
+2. Downloads official KrakenD documentation
+3. Indexes documentation with Bleve
+4. Embeds feature matrix, docs, and index into the binary
+5. Compiles cross-platform binaries
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
 

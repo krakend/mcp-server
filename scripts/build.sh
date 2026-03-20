@@ -44,10 +44,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 DOCS_DIR="$PROJECT_ROOT/tools/data/docs"
 SEARCH_DIR="$PROJECT_ROOT/tools/data/search"
+FEATURES_DIR="$PROJECT_ROOT/tools/data/features"
 BUILD_DIR="$PROJECT_ROOT/build"
 
-# Documentation URL
+# URLs
 DOCS_URL="https://www.krakend.io/llms-full.txt"
+FEATURE_MATRIX_URL="https://www.krakend.io/mcp-feature-matrix.yaml"
 
 # Version (read from main.go)
 VERSION=$(grep 'version.*=' "$PROJECT_ROOT/main.go" | grep -o '[0-9.]*' | head -1)
@@ -78,11 +80,28 @@ for arg in "$@"; do
     esac
 done
 
-# Step 1: Prepare documentation
-log "Step 1: Preparing documentation for embedding..."
+# Step 1: Prepare feature matrix and documentation
+log "Step 1: Preparing feature matrix and documentation for embedding..."
 
 mkdir -p "$DOCS_DIR"
 mkdir -p "$SEARCH_DIR"
+mkdir -p "$FEATURES_DIR"
+
+# Download feature matrix
+log "Downloading feature matrix from $FEATURE_MATRIX_URL..."
+
+if command -v curl >/dev/null 2>&1; then
+    curl -L --fail --silent --show-error -o "$FEATURES_DIR/mcp-feature-matrix.yaml" "$FEATURE_MATRIX_URL"
+elif command -v wget >/dev/null 2>&1; then
+    wget -q -O "$FEATURES_DIR/mcp-feature-matrix.yaml" "$FEATURE_MATRIX_URL"
+fi
+
+if [ -f "$FEATURES_DIR/mcp-feature-matrix.yaml" ]; then
+    MATRIX_SIZE=$(wc -c < "$FEATURES_DIR/mcp-feature-matrix.yaml" | tr -d ' ')
+    log_success "Feature matrix downloaded ($MATRIX_SIZE bytes)"
+else
+    log_warning "Failed to download feature matrix — binary will fetch it at runtime"
+fi
 
 # Download documentation
 log "Downloading documentation from $DOCS_URL..."
@@ -236,7 +255,8 @@ echo ""
 log "Binaries:"
 ls -lh "$BUILD_DIR"/ | grep krakend-mcp
 echo ""
-log "Documentation embedded:"
+log "Data embedded:"
+[ -f "$FEATURES_DIR/mcp-feature-matrix.yaml" ] && echo "  - Feature matrix: $(wc -c < "$FEATURES_DIR/mcp-feature-matrix.yaml" | tr -d ' ') bytes" || echo "  - Feature matrix: not embedded (will fetch at runtime)"
 echo "  - KrakenD docs: $DOC_SIZE bytes"
 echo "  - Search index: $(du -sh "$SEARCH_DIR/index" | cut -f1)"
 echo ""
@@ -247,3 +267,4 @@ if [ -f "$BUILD_DIR/checksums.txt" ]; then
 fi
 log "The binary is fully offline-capable!"
 log "Users can optionally refresh docs with: refresh_documentation_index tool"
+log "Feature matrix refreshes automatically every 7 days at startup"

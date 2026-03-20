@@ -8,6 +8,7 @@ require (
 	github.com/krakend/krakend-usage/v2 v2.1.0
 	github.com/modelcontextprotocol/go-sdk v1.4.1
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (

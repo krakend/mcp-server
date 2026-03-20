@@ -81,7 +81,7 @@ KrakenD MCP Server runs as a **local MCP server** via stdio transport:
 - ✅ No network ports exposed
 - ✅ No remote access
 - ✅ Runs with your user permissions
-- ✅ No data leaves your machine (except documentation downloads)
+- ✅ No data leaves your machine (except outbound fetches to www.krakend.io for feature matrix and docs)
 
 ### Data Privacy
 
@@ -97,7 +97,8 @@ KrakenD MCP Server runs as a **local MCP server** via stdio transport:
 - Personal data
 
 **What it sends externally:**
-- Documentation downloads from `https://www.krakend.io/llms-full.txt` (once per 7 days)
+- Feature matrix from `https://www.krakend.io/mcp-feature-matrix.yaml` (at startup if local cache is >7 days old)
+- Documentation from `https://www.krakend.io/llms-full.txt` (at startup if local cache is >7 days old)
 - JSON schema downloads from `https://www.krakend.io/schema/` (on-demand for validation)
 
 ### File System Access
