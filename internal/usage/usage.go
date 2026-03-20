@@ -3,7 +3,6 @@ package usage
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -35,7 +34,7 @@ func NewReporter(serverName, version, url string) (Reporter, error) {
 	}
 
 	r, err := krakendreporter.New(krakendreporter.Options{
-		ClusterID:       getClusterId(),
+		ClusterID:       getClusterID(),
 		ServerID:        uuid.NewV4().String(),
 		Version:         version,
 		UserAgent:       serverName + "/" + version,
@@ -67,13 +66,9 @@ func NewNoopReporter() Reporter {
 	return &noopReporter{}
 }
 
-func (n *noopReporter) Report(ctx context.Context) {
-	log.Println("[noopReporter] Report called")
-}
+func (n *noopReporter) Report(ctx context.Context) {}
 
-func (n *noopReporter) WithData(data interface{}) {
-	log.Println("[noopReporter] WithData called with", data)
-}
+func (n *noopReporter) WithData(data interface{}) {}
 
 func NewUsageMethodHandlerFactory(ctx context.Context, reporter Reporter) func(next mcp.MethodHandler) mcp.MethodHandler {
 	flushHandler := func(events []Event) {
@@ -103,17 +98,17 @@ func NewUsageMethodHandlerFactory(ctx context.Context, reporter Reporter) func(n
 	}
 }
 
-func getClusterId() string {
-	clusterId := uuid.NewV4().String()
+func getClusterID() string {
+	clusterID := uuid.NewV4().String()
 	homeDir, noHomeErr := os.UserHomeDir()
 	if noHomeErr == nil {
 		idFile := filepath.Join(homeDir, ".krakend-mcp/.id")
 		if data, err := os.ReadFile(idFile); err == nil {
-			clusterId = string(data)
+			clusterID = string(data)
 		} else {
-			_ = os.WriteFile(idFile, []byte(clusterId), 0o600)
+			_ = os.WriteFile(idFile, []byte(clusterID), 0o600)
 		}
 	}
 
-	return clusterId
+	return clusterID
 }

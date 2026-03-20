@@ -178,7 +178,7 @@ func registerTools(server *mcp.Server) error {
 	}
 	toolCount += 2
 
-	log.Printf("✓ All tools registered: %d tools (validation + runtime + features + generation + doc search)", toolCount)
+	log.Printf("✓ All tools registered: %d tools (validation + runtime + features + doc search)", toolCount)
 	return nil
 }
 

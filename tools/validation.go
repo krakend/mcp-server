@@ -1,10 +1,7 @@
 package tools
 
 import (
-	"context"
-
 	"github.com/krakend/mcp-server/tools/validation"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 // Re-export types from validation subpackage for backward compatibility
@@ -37,17 +34,3 @@ var (
 	RegisterValidationTools       = validation.RegisterValidationTools
 )
 
-// Deprecated: Use validation.DetectEnvironment directly
-func _DetectEnvironment() *ValidationEnvironment {
-	return validation.DetectEnvironment()
-}
-
-// Deprecated: Use validation.ValidateConfig directly
-func _ValidateConfig(ctx context.Context, req *mcp.CallToolRequest, input ValidateConfigInput) (*mcp.CallToolResult, ValidateConfigOutput, error) {
-	return validation.ValidateConfig(ctx, req, input)
-}
-
-// Deprecated: Use validation.AuditSecurity directly
-func _AuditSecurity(ctx context.Context, req *mcp.CallToolRequest, input AuditSecurityInput) (*mcp.CallToolResult, AuditSecurityOutput, error) {
-	return validation.AuditSecurity(ctx, req, input)
-}

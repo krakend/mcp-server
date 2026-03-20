@@ -31,7 +31,9 @@ func (e *Event) SetError(err error) {
 
 func (e *Event) WithRequest(req mcp.Request) {
 	if e.Method == "tools/call" {
-		e.ToolName = req.GetParams().(*mcp.CallToolParamsRaw).Name
+		if params, ok := req.GetParams().(*mcp.CallToolParamsRaw); ok {
+			e.ToolName = params.Name
+		}
 	}
 }
 
