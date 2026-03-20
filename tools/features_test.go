@@ -6,6 +6,38 @@ import (
 	"github.com/krakend/mcp-server/internal/features"
 )
 
+const minimalFeatureYAML = `
+sections:
+  - name: "Auth"
+    features:
+      - name: "API Keys"
+        description: "EE API key auth"
+        url: "/docs/api-keys"
+        ee: true
+        namespaces:
+          - "auth/api-keys"
+      - name: "CORS"
+        description: "CE CORS support"
+        url: "/docs/cors"
+        ee: false
+        namespaces:
+          - "security/cors"
+`
+
+func setMockFeatureFetcher(t *testing.T, yamlContent string) {
+	t.Helper()
+	orig := features.HTTPFetcher
+	origDataDir := dataDir
+	features.HTTPFetcher = func(_ string) ([]byte, error) { return []byte(yamlContent), nil }
+	dataDir = t.TempDir()
+	t.Cleanup(func() {
+		features.HTTPFetcher = orig
+		dataDir = origDataDir
+		featureCatalog = nil
+		editionMatrix = nil
+	})
+}
+
 func TestFindNamespacesInConfig_EmptyConfig(t *testing.T) {
 	config := map[string]interface{}{}
 
@@ -150,6 +182,7 @@ func TestCollectNamespaces_MapPerformance(t *testing.T) {
 }
 
 func TestDetectEnterpriseFeatures_NoEEFeatures(t *testing.T) {
+	setMockFeatureFetcher(t, minimalFeatureYAML)
 	config := `{
 		"version": 3,
 		"endpoints": []
@@ -163,6 +196,7 @@ func TestDetectEnterpriseFeatures_NoEEFeatures(t *testing.T) {
 }
 
 func TestDetectEnterpriseFeatures_WithEENamespace(t *testing.T) {
+	setMockFeatureFetcher(t, minimalFeatureYAML)
 	config := `{
 		"version": 3,
 		"extra_config": {

@@ -4,11 +4,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/krakend/mcp-server/internal/features"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+)
+
+const (
+	remoteFeatureMatrixURL = "https://www.krakend.io/mcp-feature-matrix.yaml"
+	featureMatrixFile      = "features/mcp-feature-matrix.yaml"
+	featureCacheTTL        = 7 * 24 * time.Hour
 )
 
 // Re-export types from internal/features for backward compatibility
@@ -37,44 +45,67 @@ func DetectEnterpriseFeatures(configJSON string) bool {
 	return features.DetectEnterpriseFeatures(configJSON, editionMatrix.EEOnlyFeatures)
 }
 
-// LoadFeatureData loads feature catalog and edition matrix
+// LoadFeatureData loads the feature catalog and edition matrix using an offline-first strategy:
+//  1. Use local cached file if fresh (<7 days old)
+//  2. Re-download if stale; on failure fall back to existing local file
+//  3. If no local file, download; on failure use embedded fallback
 func LoadFeatureData() error {
-	// Load feature catalog
-	// Try embedded data first (standalone binary), then filesystem (development)
-	catalogData, err := defaultDataProvider.ReadFile("data/features/catalog.json")
-	if err != nil {
-		// Fallback to filesystem (development mode)
-		catalogPath := filepath.Join(dataDir, "features/catalog.json")
-		catalogData, err = os.ReadFile(catalogPath)
-		if err != nil {
-			return fmt.Errorf("failed to read feature catalog (embedded or filesystem): %w", err)
+	localPath := filepath.Join(dataDir, featureMatrixFile)
+
+	if info, err := os.Stat(localPath); err == nil {
+		age := time.Since(info.ModTime())
+		if age <= featureCacheTTL {
+			return loadFeatureMatrixFromPath(localPath)
 		}
-	}
-
-	var catalog FeatureCatalog
-	if err := json.Unmarshal(catalogData, &catalog); err != nil {
-		return fmt.Errorf("failed to parse feature catalog: %w", err)
-	}
-	featureCatalog = &catalog
-
-	// Load edition matrix
-	// Try embedded data first (standalone binary), then filesystem (development)
-	matrixData, err := defaultDataProvider.ReadFile("data/editions/matrix.json")
-	if err != nil {
-		// Fallback to filesystem (development mode)
-		matrixPath := filepath.Join(dataDir, "editions/matrix.json")
-		matrixData, err = os.ReadFile(matrixPath)
-		if err != nil {
-			return fmt.Errorf("failed to read edition matrix (embedded or filesystem): %w", err)
+		log.Printf("Feature matrix is %v old (>7 days), refreshing...", age.Round(24*time.Hour))
+		if err := downloadFeatureMatrix(localPath); err != nil {
+			log.Printf("Warning: could not refresh feature matrix: %v — using existing local file", err)
 		}
+		return loadFeatureMatrixFromPath(localPath)
 	}
 
-	var matrix EditionMatrix
-	if err := json.Unmarshal(matrixData, &matrix); err != nil {
-		return fmt.Errorf("failed to parse edition matrix: %w", err)
+	// No local file: try download first, fall back to embedded.
+	if err := downloadFeatureMatrix(localPath); err != nil {
+		log.Printf("Warning: could not download feature matrix: %v — using embedded fallback", err)
+		return loadEmbeddedFeatureMatrix()
 	}
-	editionMatrix = &matrix
+	return loadFeatureMatrixFromPath(localPath)
+}
 
+func downloadFeatureMatrix(localPath string) error {
+	data, err := features.HTTPFetcher(remoteFeatureMatrixURL)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(localPath), 0o755); err != nil {
+		return fmt.Errorf("failed to create features directory: %w", err)
+	}
+	return os.WriteFile(localPath, data, 0o644)
+}
+
+func loadFeatureMatrixFromPath(path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("failed to read feature matrix: %w", err)
+	}
+	return parseAndStoreFeatureMatrix(data)
+}
+
+func loadEmbeddedFeatureMatrix() error {
+	data, err := defaultDataProvider.ReadFile("data/features/mcp-feature-matrix.yaml")
+	if err != nil {
+		return fmt.Errorf("no embedded feature matrix available (run build.sh to embed it): %w", err)
+	}
+	return parseAndStoreFeatureMatrix(data)
+}
+
+func parseAndStoreFeatureMatrix(data []byte) error {
+	catalog, matrix, err := features.ParseFeatureMatrix(data)
+	if err != nil {
+		return fmt.Errorf("failed to parse feature matrix: %w", err)
+	}
+	featureCatalog = catalog
+	editionMatrix = matrix
 	return nil
 }
 

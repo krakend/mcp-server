@@ -37,14 +37,17 @@ build/
 # Temporary build files
 cmd/indexer/indexer
 
-# Documentation (downloaded during build, then embedded)
+# Documentation and feature data (downloaded during build, then embedded)
 tools/data/docs/llms-full.txt
 tools/data/docs/cache.meta
 tools/data/search/*
 !tools/data/search/index/
 tools/data/search/index/*
 !tools/data/search/index/.gitkeep
+tools/data/features/mcp-feature-matrix.yaml
 
 # Temporary files
 *.tmp
 *.log
+
+CLAUDE.md
