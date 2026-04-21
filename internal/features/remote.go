@@ -2,6 +2,7 @@ package features
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -22,18 +23,7 @@ func defaultHTTPFetch(url string) ([]byte, error) {
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected HTTP status %d", resp.StatusCode)
 	}
-	buf := make([]byte, 0, 1024*1024)
-	tmp := make([]byte, 32*1024)
-	for {
-		n, err := resp.Body.Read(tmp)
-		if n > 0 {
-			buf = append(buf, tmp[:n]...)
-		}
-		if err != nil {
-			break
-		}
-	}
-	return buf, nil
+	return io.ReadAll(resp.Body)
 }
 
 // remoteMatrix is the top-level YAML structure.
@@ -124,4 +114,3 @@ func normalizeURL(u string) string {
 	}
 	return u
 }
-
