@@ -14,8 +14,7 @@ KrakenD MCP Server is a [Model Context Protocol](https://modelcontextprotocol.io
 
 - ✅ **Configuration Validation** - Version-aware validation with specific error messages
 - 🔒 **Security Auditing** - Comprehensive security analysis with actionable recommendations
-- 🎯 **Feature Discovery** - Browse 100+ KrakenD features with CE/EE compatibility
-- 🏗️ **Config Generation** - Generate endpoints, backends, and complete configurations
+- 🎯 **Feature Discovery** - Browse KrakenD features with CE/EE compatibility (offline-first, auto-refreshes every 7 days)
 - 📖 **Documentation Search** - Full-text search through official KrakenD documentation
 - 🔍 **Edition Detection** - Automatic CE vs EE feature detection
 - ⚡ **Flexible Configuration** - Automatic detection and support for both CE and EE FC variants
@@ -41,17 +40,17 @@ This script will:
 
 ```bash
 # macOS Apple Silicon
-curl -L -o krakend-mcp-server https://github.com/krakend/mcp-server/releases/download/v0.6.3/krakend-mcp-darwin-arm64
+curl -L -o krakend-mcp-server https://github.com/krakend/mcp-server/releases/download/v0.7.0/krakend-mcp-darwin-arm64
 chmod +x krakend-mcp-server
 sudo mv krakend-mcp-server /usr/local/bin/
 
 # macOS Intel
-curl -L -o krakend-mcp-server https://github.com/krakend/mcp-server/releases/download/v0.6.3/krakend-mcp-darwin-amd64
+curl -L -o krakend-mcp-server https://github.com/krakend/mcp-server/releases/download/v0.7.0/krakend-mcp-darwin-amd64
 chmod +x krakend-mcp-server
 sudo mv krakend-mcp-server /usr/local/bin/
 
 # Linux x64
-curl -L -o krakend-mcp-server https://github.com/krakend/mcp-server/releases/download/v0.6.3/krakend-mcp-linux-amd64
+curl -L -o krakend-mcp-server https://github.com/krakend/mcp-server/releases/download/v0.7.0/krakend-mcp-linux-amd64
 chmod +x krakend-mcp-server
 sudo mv krakend-mcp-server /usr/local/bin/
 
@@ -102,7 +101,7 @@ If you only want the MCP tools without Skills/Agent:
 
 3. Restart Claude Code
 
-**Tools available**: All 10 MCP tools (validate, audit, generate, search docs, etc.)
+**Tools available**: All 7 MCP tools (validate, audit, features, search docs, etc.)
 
 ---
 
@@ -208,18 +207,20 @@ If you only want the MCP tools without Skills/Agent:
 Use the server directly for CI/CD, scripts, or standalone tools:
 
 ```bash
-# Validate config
-echo '{"endpoint": "/api/users", ...}' | krakend-mcp-server validate
+# Run in stdio mode (default - for MCP clients)
+krakend-mcp-server
 
-# Security audit
-krakend-mcp-server audit --config krakend.json
+# Run in HTTP mode (port 8090 by default)
+krakend-mcp-server --http
 
-# Search docs
-krakend-mcp-server search "rate limiting"
+# Run in HTTP mode on a custom port
+PORT=9000 krakend-mcp-server --http
 
 # Check version
 krakend-mcp-server --version
 ```
+
+**HTTP mode** exposes the MCP server as a streamable HTTP endpoint on `/`, making it usable from HTTP-based MCP clients or for integration testing.
 
 ---
 
@@ -229,7 +230,7 @@ krakend-mcp-server --version
 |--------|-----------------|----------|----------|
 | **Claude Code + Plugin** | ⭐ Easy (automatic) | Full (MCP + Skills + Agent) | Complete KrakenD assistance |
 | **VS Code (Native)** | ⭐⭐ Easy (Cmd+P → Add MCP) | MCP tools only | VS Code + Copilot users |
-| **Claude Code (MCP only)** | ⭐⭐ Medium (manual config) | MCP tools only | Simple validation/generation |
+| **Claude Code (MCP only)** | ⭐⭐ Medium (manual config) | MCP tools only | Simple validation/auditing |
 | **Cursor** | ⭐⭐ Medium | MCP tools only | Cursor users |
 | **Cline** | ⭐⭐ Medium | MCP tools only | Cline users |
 | **Zed** | ⭐⭐ Medium | MCP tools only | Zed users |
@@ -241,11 +242,11 @@ KrakenD MCP Server includes an intelligent documentation search system powered b
 
 ### How It Works
 
-**Embedded Documentation (Offline-First)**
-- Official KrakenD documentation is **embedded directly in the binary** during build
+**Embedded Data (Offline-First)**
+- Official KrakenD documentation and feature matrix are **embedded directly in the binary** during build
 - Pre-built search index included (~5.7MB)
-- **Works completely offline** - no internet required
-- Instant availability on first run
+- **Works completely offline** - no internet required on first run
+- Both docs and feature data auto-refresh every 7 days in the background at startup
 
 **Local Documentation Updates**
 - Use `refresh_documentation_index` tool to download latest documentation
@@ -298,13 +299,12 @@ rm -rf ~/.krakend-mcp/docs/ ~/.krakend-mcp/search/
 ### Privacy & Offline Use
 
 - Documentation is downloaded from **official KrakenD sources only**
-- No telemetry or tracking
 - After initial download, search works **completely offline**
 - No external requests during search operations
 
 ## MCP Tools
 
-The server exposes 10 specialized tools:
+The server exposes 7 specialized tools:
 
 ### Validation & Security
 
@@ -318,16 +318,13 @@ The server exposes 10 specialized tools:
 
 | Tool | Description |
 |------|-------------|
-| `list_features` | Browse all KrakenD features with name, namespace, edition, and category |
-| `get_feature_config_template` | Get configuration templates with required/optional fields |
+| `list_features` | Browse KrakenD features with name, namespace, edition, and category. Filter by `ee` (bool) for Enterprise-only features or `query` (string) to search by name/description |
 
-### Configuration Generation
+### Runtime
 
 | Tool | Description |
 |------|-------------|
-| `generate_basic_config` | Generate complete KrakenD configuration from scratch |
-| `generate_endpoint_config` | Generate endpoint configuration with best practices |
-| `generate_backend_config` | Generate backend service configuration |
+| `detect_runtime_environment` | Detect the current KrakenD runtime environment and available tooling |
 
 ### Documentation
 
@@ -364,25 +361,17 @@ audit_security --config krakend.json
 ### Feature Discovery
 
 ```bash
-# List all authentication features
-list_features --category authentication
+# List all features
+list_features
 
-# Returns:
-# - JWT Validation (CE) - Validate JWT tokens
-# - API Key Auth (EE) - API key authentication
-# - OAuth Client (CE) - OAuth 2.0 client flow
-```
+# List Enterprise Edition features only
+list_features --ee true
 
-### Generate Configuration
+# Search features by keyword (matches name and description)
+list_features --query "rate limit"
 
-```bash
-# Generate a new endpoint
-generate_endpoint_config \
-  --method GET \
-  --path /api/users \
-  --backend_url https://backend.example.com/users
-
-# Returns complete endpoint config with best practices
+# Combine filters: EE features matching a keyword
+list_features --ee true --query "redis"
 ```
 
 ## Flexible Configuration Support
@@ -434,10 +423,11 @@ go build -o krakend-mcp-server
 ```
 
 The build script:
-1. Downloads official KrakenD documentation
-2. Indexes documentation with Bleve
-3. Embeds docs + index into binary
-4. Compiles cross-platform binaries
+1. Downloads the KrakenD feature matrix YAML
+2. Downloads official KrakenD documentation
+3. Indexes documentation with Bleve
+4. Embeds feature matrix, docs, and index into the binary
+5. Compiles cross-platform binaries
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
 
@@ -461,7 +451,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
 │  (Claude, Cursor,   │
 │   Cline, etc.)      │
 └──────────┬──────────┘
-           │ MCP Protocol (stdio)
+           │ MCP Protocol (stdio or HTTP)
            ↓
 ┌─────────────────────┐
 │ KrakenD MCP Server  │
@@ -469,7 +459,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
 │  ├─ Validation      │
 │  ├─ Security Audit  │
 │  ├─ Features        │
-│  ├─ Generation      │
+│  ├─ Runtime         │
 │  └─ Docs Search     │
 └──────────┬──────────┘
            │
@@ -502,7 +492,7 @@ Examples:
 This project is in active development. Current status:
 
 - ✅ Core MCP server implementation
-- ✅ All 10 tools functional and tested
+- ✅ All 7 tools functional and tested
 - ✅ Cross-platform builds (macOS, Linux, Windows)
 - ✅ Embedded documentation with offline search
 - ✅ **Automated testing suite** with CI/CD (28% coverage, threshold: 20%)
@@ -546,6 +536,18 @@ Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 ### Building from Source
 
 See the "Building from Source" section above for detailed build instructions.
+
+## Usage Analytics
+
+The MCP server collects **anonymous usage data** to help understand which tools are being used and how they perform. This allows us to prioritize improvements, detect widespread errors, and make better product decisions.
+
+> **No sensitive information is ever sent.** Your KrakenD configuration contents, search queries, file paths, and any other inputs or outputs are never included in the reported data.
+
+To opt out, set the `USAGE_DISABLE=1` environment variable before starting the server:
+
+```bash
+USAGE_DISABLE=1 krakend-mcp-server
+```
 
 ## Support
 

@@ -4,11 +4,20 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/krakend/mcp-server/internal/features"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+)
+
+const (
+	remoteFeatureMatrixURL = "https://www.krakend.io/mcp-feature-matrix.yaml"
+	featureMatrixFile      = "features/mcp-feature-matrix.yaml"
+	featureCacheTTL        = 7 * 24 * time.Hour
 )
 
 // Re-export types from internal/features for backward compatibility
@@ -37,44 +46,67 @@ func DetectEnterpriseFeatures(configJSON string) bool {
 	return features.DetectEnterpriseFeatures(configJSON, editionMatrix.EEOnlyFeatures)
 }
 
-// LoadFeatureData loads feature catalog and edition matrix
+// LoadFeatureData loads the feature catalog and edition matrix using an offline-first strategy:
+//  1. Use local cached file if fresh (<7 days old)
+//  2. Re-download if stale; on failure fall back to existing local file
+//  3. If no local file, download; on failure use embedded fallback
 func LoadFeatureData() error {
-	// Load feature catalog
-	// Try embedded data first (standalone binary), then filesystem (development)
-	catalogData, err := defaultDataProvider.ReadFile("data/features/catalog.json")
-	if err != nil {
-		// Fallback to filesystem (development mode)
-		catalogPath := filepath.Join(dataDir, "features/catalog.json")
-		catalogData, err = os.ReadFile(catalogPath)
-		if err != nil {
-			return fmt.Errorf("failed to read feature catalog (embedded or filesystem): %w", err)
+	localPath := filepath.Join(dataDir, featureMatrixFile)
+
+	if info, err := os.Stat(localPath); err == nil {
+		age := time.Since(info.ModTime())
+		if age <= featureCacheTTL {
+			return loadFeatureMatrixFromPath(localPath)
 		}
-	}
-
-	var catalog FeatureCatalog
-	if err := json.Unmarshal(catalogData, &catalog); err != nil {
-		return fmt.Errorf("failed to parse feature catalog: %w", err)
-	}
-	featureCatalog = &catalog
-
-	// Load edition matrix
-	// Try embedded data first (standalone binary), then filesystem (development)
-	matrixData, err := defaultDataProvider.ReadFile("data/editions/matrix.json")
-	if err != nil {
-		// Fallback to filesystem (development mode)
-		matrixPath := filepath.Join(dataDir, "editions/matrix.json")
-		matrixData, err = os.ReadFile(matrixPath)
-		if err != nil {
-			return fmt.Errorf("failed to read edition matrix (embedded or filesystem): %w", err)
+		log.Printf("Feature matrix is %v old (>7 days), refreshing...", age.Round(24*time.Hour))
+		if err := downloadFeatureMatrix(localPath); err != nil {
+			log.Printf("Warning: could not refresh feature matrix: %v — using existing local file", err)
 		}
+		return loadFeatureMatrixFromPath(localPath)
 	}
 
-	var matrix EditionMatrix
-	if err := json.Unmarshal(matrixData, &matrix); err != nil {
-		return fmt.Errorf("failed to parse edition matrix: %w", err)
+	// No local file: try download first, fall back to embedded.
+	if err := downloadFeatureMatrix(localPath); err != nil {
+		log.Printf("Warning: could not download feature matrix: %v — using embedded fallback", err)
+		return loadEmbeddedFeatureMatrix()
 	}
-	editionMatrix = &matrix
+	return loadFeatureMatrixFromPath(localPath)
+}
 
+func downloadFeatureMatrix(localPath string) error {
+	data, err := features.HTTPFetcher(remoteFeatureMatrixURL)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(localPath), 0o755); err != nil {
+		return fmt.Errorf("failed to create features directory: %w", err)
+	}
+	return os.WriteFile(localPath, data, 0o644)
+}
+
+func loadFeatureMatrixFromPath(path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("failed to read feature matrix: %w", err)
+	}
+	return parseAndStoreFeatureMatrix(data)
+}
+
+func loadEmbeddedFeatureMatrix() error {
+	data, err := defaultDataProvider.ReadFile("data/features/mcp-feature-matrix.yaml")
+	if err != nil {
+		return fmt.Errorf("no embedded feature matrix available (run build.sh to embed it): %w", err)
+	}
+	return parseAndStoreFeatureMatrix(data)
+}
+
+func parseAndStoreFeatureMatrix(data []byte) error {
+	catalog, matrix, err := features.ParseFeatureMatrix(data)
+	if err != nil {
+		return fmt.Errorf("failed to parse feature matrix: %w", err)
+	}
+	featureCatalog = catalog
+	editionMatrix = matrix
 	return nil
 }
 
@@ -82,7 +114,7 @@ func LoadFeatureData() error {
 type FeatureSummary struct {
 	Name        string `json:"name"`
 	Namespace   string `json:"namespace"`
-	Edition     string `json:"edition"`     // "ce", "ee", or "both"
+	Edition     string `json:"edition"` // "ce", "ee", or "both"
 	Category    string `json:"category"`
 	Description string `json:"description"`
 	DocsURL     string `json:"docs_url,omitempty"`
@@ -90,7 +122,8 @@ type FeatureSummary struct {
 
 // ListFeaturesInput defines input for list_features tool
 type ListFeaturesInput struct {
-	// No input needed - returns all features
+	EE    bool   `json:"ee,omitempty"    jsonschema:"Filter to Enterprise Edition features only"`
+	Query string `json:"query,omitempty" jsonschema:"Search term matched against feature name and description"`
 }
 
 // ListFeaturesOutput defines output for list_features tool
@@ -99,7 +132,7 @@ type ListFeaturesOutput struct {
 	Count    int              `json:"count"`
 }
 
-// ListFeatures returns all KrakenD features with lightweight info
+// ListFeatures returns KrakenD features with optional filtering by edition and search query
 func ListFeatures(ctx context.Context, req *mcp.CallToolRequest, input ListFeaturesInput) (*mcp.CallToolResult, ListFeaturesOutput, error) {
 	if featureCatalog == nil {
 		if err := LoadFeatureData(); err != nil {
@@ -107,8 +140,19 @@ func ListFeatures(ctx context.Context, req *mcp.CallToolRequest, input ListFeatu
 		}
 	}
 
+	query := strings.ToLower(input.Query)
+
 	summaries := make([]FeatureSummary, 0, len(featureCatalog.Features))
 	for _, feature := range featureCatalog.Features {
+		if input.EE && feature.Edition != "ee" {
+			continue
+		}
+		if query != "" {
+			if !strings.Contains(strings.ToLower(feature.Name), query) &&
+				!strings.Contains(strings.ToLower(feature.Description), query) {
+				continue
+			}
+		}
 		summaries = append(summaries, FeatureSummary{
 			Name:        feature.Name,
 			Namespace:   feature.Namespace,
@@ -119,10 +163,11 @@ func ListFeatures(ctx context.Context, req *mcp.CallToolRequest, input ListFeatu
 		})
 	}
 
-	return nil, ListFeaturesOutput{
+	output := ListFeaturesOutput{
 		Features: summaries,
 		Count:    len(summaries),
-	}, nil
+	}
+	return &mcp.CallToolResult{Meta: map[string]interface{}{"count": output.Count}}, output, nil
 }
 
 // CheckEditionCompatibilityInput defines input for check_edition_compatibility tool
@@ -132,12 +177,12 @@ type CheckEditionCompatibilityInput struct {
 
 // CheckEditionCompatibilityOutput defines output for check_edition_compatibility tool
 type CheckEditionCompatibilityOutput struct {
-	Edition        string   `json:"edition"`         // "ce", "ee", or "mixed"
-	EEFeatures     []string `json:"ee_features"`     // List of EE-only features found
-	CECompatible   bool     `json:"ce_compatible"`   // True if config works with CE
-	RequiresEE     bool     `json:"requires_ee"`     // True if config requires EE
+	Edition        string                 `json:"edition"`       // "ce", "ee", or "mixed"
+	EEFeatures     []string               `json:"ee_features"`   // List of EE-only features found
+	CECompatible   bool                   `json:"ce_compatible"` // True if config works with CE
+	RequiresEE     bool                   `json:"requires_ee"`   // True if config requires EE
 	FeatureDetails []FeatureCompatibility `json:"feature_details"`
-	Message        string   `json:"message"`
+	Message        string                 `json:"message"`
 }
 
 // FeatureCompatibility represents compatibility info for a feature
@@ -224,7 +269,7 @@ func RegisterFeatureTools(server *mcp.Server) error {
 	mcp.AddTool(server,
 		&mcp.Tool{
 			Name:        "list_features",
-			Description: "List all KrakenD features with name, namespace, edition (ce/ee/both), category, and description. Use this to browse available features and check edition requirements.",
+			Description: "List KrakenD features with name, namespace, edition (ce/ee), category, and description. Optionally filter by edition (ee=true for Enterprise-only) or search by keyword across name and description.",
 		},
 		ListFeatures,
 	)

@@ -4,8 +4,11 @@ go 1.25.0
 
 require (
 	github.com/blevesearch/bleve/v2 v2.5.6
+	github.com/go-contrib/uuid v1.2.0
+	github.com/krakend/krakend-usage/v2 v2.1.0
 	github.com/modelcontextprotocol/go-sdk v1.4.1
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -28,6 +31,7 @@ require (
 	github.com/blevesearch/zapx/v14 v14.4.2 // indirect
 	github.com/blevesearch/zapx/v15 v15.4.2 // indirect
 	github.com/blevesearch/zapx/v16 v16.2.7 // indirect
+	github.com/catalinc/hashcash v0.0.0-20161205220751-e6bc29ff4de9 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/jsonschema-go v0.4.2 // indirect
 	github.com/json-iterator/go v0.0.0-20171115153421-f7279a603ede // indirect

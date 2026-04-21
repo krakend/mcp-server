@@ -20,7 +20,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version-file: go.mod
 
       - name: Extract version from tag
         id: version
@@ -59,7 +59,7 @@ jobs:
           cat build/checksums.txt
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           name: KrakenD MCP Server v${{ steps.version.outputs.version }}
           body: |
@@ -71,10 +71,10 @@ jobs:
 
             - ✅ **Configuration Validation** - Version-aware with specific error messages
             - 🔒 **Security Auditing** - Comprehensive security analysis
-            - 🎯 **Feature Discovery** - Browse 100+ features with CE/EE compatibility
-            - 🏗️ **Config Generation** - Generate endpoints, backends, complete configs
+            - 🎯 **Feature Discovery** - Browse features with CE/EE compatibility; filter by edition or keyword
             - 📖 **Documentation Search** - Full-text search (embedded, offline-capable)
             - 🔍 **Edition Detection** - Automatic CE vs EE detection
+            - 🌐 **HTTP mode** - Streamable HTTP endpoint (`--http`, port 8090)
 
             ### 📦 Download
 
@@ -107,12 +107,14 @@ jobs:
             - **MCP Configuration**: See README for client-specific setup
             - **Claude Code Plugin**: https://github.com/krakend/krakend-ai-assistant
 
-            ### ⚡ What's New
+            ### ⚡ What's New in v${{ steps.version.outputs.version }}
 
-            - Fully offline-capable with embedded KrakenD documentation
-            - Pre-built search index for instant documentation search
+            - **HTTP server mode** — run as a Streamable HTTP MCP endpoint with `--http`
+            - **Anonymous usage telemetry** — opt out with `USAGE_DISABLE=1`
+            - **Remote feature matrix** — auto-refreshed from krakend.io every 7 days, with offline fallback
+            - **`list_features` filters** — `query` (string) and `ee` (bool) parameters
+            - Fully offline-capable with embedded KrakenD documentation and pre-built search index
             - Cross-platform binary works on macOS, Linux, Windows
-            - Optional documentation refresh with \`refresh_documentation_index\` tool
 
             ---
 
