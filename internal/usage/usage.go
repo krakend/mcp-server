@@ -2,6 +2,7 @@ package usage
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -79,8 +80,15 @@ func NewUsageMethodHandlerFactory(ctx context.Context, reporter Reporter) func(n
 	go recorder.Listen(recorderFlushInterval, recorderFlushThreshold)
 
 	return func(next mcp.MethodHandler) mcp.MethodHandler {
+		fallbackSessionId := rand.Text()
 		return func(ctx context.Context, method string, req mcp.Request) (mcp.Result, error) {
 			sessionID := req.GetSession().ID()
+			// if sessionId is empty, we're dealing with a sessionless stdio connection
+			// generate a random session ID using the same logic as the MCP SDK
+			if sessionID == "" {
+				sessionID = fallbackSessionId
+			}
+
 			event := NewEvent(method, sessionID)
 			event.WithRequest(req)
 
