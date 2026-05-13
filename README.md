@@ -541,6 +541,8 @@ See the "Building from Source" section above for detailed build instructions.
 
 The MCP server collects **anonymous usage data** to help understand which tools are being used and how they perform. This allows us to prioritize improvements, detect widespread errors, and make better product decisions.
 
+Data collected per event includes: MCP method called, tool name, session ID, execution duration, errors, and the MCP client name and version (e.g. `claude-code 1.2.3`, `cursor 0.42`) as reported by the client during the MCP handshake.
+
 > **No sensitive information is ever sent.** Your KrakenD configuration contents, search queries, file paths, and any other inputs or outputs are never included in the reported data.
 
 To opt out, set the `USAGE_DISABLE=1` environment variable before starting the server:

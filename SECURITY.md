@@ -89,17 +89,18 @@ KrakenD MCP Server runs as a **local MCP server** via stdio transport:
 - Local KrakenD configuration files (read-only by default)
 - Cached documentation in `data/` directory
 - Search index in `data/search/`
+- Feature matrix from `https://www.krakend.io/mcp-feature-matrix.yaml` (at startup if local cache is >7 days old)
+- Documentation from `https://www.krakend.io/llms-full.txt` (at startup if local cache is >7 days old)
+- JSON schema downloads from `https://www.krakend.io/schema/` (on-demand for validation)
 
 **What it does NOT access:**
 - Your network traffic
 - Other system files (outside working directory)
-- Remote servers (except www.krakend.io for docs)
+- Remote servers (except www.krakend.io for docs, listed above)
 - Personal data
 
 **What it sends externally:**
-- Feature matrix from `https://www.krakend.io/mcp-feature-matrix.yaml` (at startup if local cache is >7 days old)
-- Documentation from `https://www.krakend.io/llms-full.txt` (at startup if local cache is >7 days old)
-- JSON schema downloads from `https://www.krakend.io/schema/` (on-demand for validation)
+- Anonymous batched usage analytics; includes MCP method, tool name, session ID, duration, errors, and MCP client name/version (e.g. `claude-code`). No configuration content, file paths, or query text is included. Disable with `USAGE_DISABLE=1`.
 
 ### File System Access
 

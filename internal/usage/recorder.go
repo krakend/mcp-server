@@ -8,13 +8,15 @@ import (
 )
 
 type Event struct {
-	When      time.Time
-	Method    string
-	ToolName  string
-	SessionID string
-	Duration  time.Duration
-	Error     error
-	Meta      map[string]interface{}
+	When          time.Time
+	Method        string
+	ToolName      string
+	SessionID     string
+	ClientName    string
+	ClientVersion string
+	Duration      time.Duration
+	Error         error
+	Meta          map[string]interface{}
 }
 
 func NewEvent(method, sessionID string) Event {
@@ -35,6 +37,19 @@ func (e *Event) WithRequest(req mcp.Request) {
 			e.ToolName = params.Name
 		}
 	}
+}
+
+func (e *Event) WithSession(req mcp.Request) {
+	ss, ok := req.GetSession().(*mcp.ServerSession)
+	if !ok {
+		return
+	}
+	params := ss.InitializeParams()
+	if params == nil || params.ClientInfo == nil {
+		return
+	}
+	e.ClientName = params.ClientInfo.Name
+	e.ClientVersion = params.ClientInfo.Version
 }
 
 func (e *Event) WithResponse(resp mcp.Result) {
