@@ -100,7 +100,7 @@ KrakenD MCP Server runs as a **local MCP server** via stdio transport:
 - Personal data
 
 **What it sends externally:**
-- Anonymous batched usage analytics; includes MCP method, tool name, session ID, duration, errors, and MCP client name/version (e.g. `claude-code`). No configuration content, file paths, or query text is included. Disable with `USAGE_DISABLE=1`.
+- Anonymous batched usage analytics; includes MCP method, tool name, session ID, duration, errors, MCP client name/version (e.g. `claude-code`), and tool-specific metadata (e.g. result counts, whether a query touched Enterprise Edition features). No configuration content, file paths, or query text is included. Disable with `USAGE_DISABLE=1`.
 
 ### File System Access
 

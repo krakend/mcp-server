@@ -142,6 +142,8 @@ func ListFeatures(ctx context.Context, req *mcp.CallToolRequest, input ListFeatu
 
 	query := strings.ToLower(input.Query)
 
+	eeOnlyFeatures := make([]string, 0)
+
 	summaries := make([]FeatureSummary, 0, len(featureCatalog.Features))
 	for _, feature := range featureCatalog.Features {
 		if input.EE && feature.Edition != "ee" {
@@ -152,6 +154,9 @@ func ListFeatures(ctx context.Context, req *mcp.CallToolRequest, input ListFeatu
 				!strings.Contains(strings.ToLower(feature.Description), query) {
 				continue
 			}
+		}
+		if feature.Edition == "ee" {
+			eeOnlyFeatures = append(eeOnlyFeatures, feature.Namespace)
 		}
 		summaries = append(summaries, FeatureSummary{
 			Name:        feature.Name,
@@ -167,7 +172,13 @@ func ListFeatures(ctx context.Context, req *mcp.CallToolRequest, input ListFeatu
 		Features: summaries,
 		Count:    len(summaries),
 	}
-	return &mcp.CallToolResult{Meta: map[string]interface{}{"count": output.Count}}, output, nil
+	return &mcp.CallToolResult{
+		Meta: map[string]interface{}{
+			"count":       output.Count,
+			"is_ee_query": len(eeOnlyFeatures) > 0,
+			"ee_features": eeOnlyFeatures,
+		},
+	}, output, nil
 }
 
 // CheckEditionCompatibilityInput defines input for check_edition_compatibility tool
@@ -248,14 +259,21 @@ func CheckEditionCompatibility(ctx context.Context, req *mcp.CallToolRequest, in
 		message = fmt.Sprintf("Configuration requires Enterprise Edition (uses %d EE-only feature(s))", len(eeFeatures))
 	}
 
-	return nil, CheckEditionCompatibilityOutput{
-		Edition:        edition,
-		EEFeatures:     eeFeatures,
-		CECompatible:   !requiresEE,
-		RequiresEE:     requiresEE,
-		FeatureDetails: featureDetails,
-		Message:        message,
-	}, nil
+	return &mcp.CallToolResult{
+			Meta: map[string]interface{}{
+				"is_ee_query": requiresEE,
+				"ee_features": eeFeatures,
+			},
+		},
+		CheckEditionCompatibilityOutput{
+			Edition:        edition,
+			EEFeatures:     eeFeatures,
+			CECompatible:   !requiresEE,
+			RequiresEE:     requiresEE,
+			FeatureDetails: featureDetails,
+			Message:        message,
+		},
+		nil
 }
 
 // RegisterFeatureTools registers all feature detection tools

@@ -22,7 +22,6 @@ import (
 const (
 	docsURL       = "https://www.krakend.io/llms-full.txt"
 	cacheTTL      = 7 * 24 * time.Hour // 7 days
-	maxResults    = 10
 	docsFile      = "docs/llms-full.txt"
 	cacheMetaFile = "docs/cache.meta"
 	indexDir      = "search/index"
@@ -923,7 +922,28 @@ func SearchDocumentation(ctx context.Context, req *mcp.CallToolRequest, input Se
 		SourceURLs: []string{"https://www.krakend.io/docs/"},
 	}
 
-	return &mcp.CallToolResult{Meta: map[string]interface{}{"total_hits": output.TotalHits}}, output, nil
+	eeFeatures := []string{}
+	if featureCatalog == nil {
+		// ensure the feature catalog is loaded (it should be after initialization, but just in case)
+		_ = LoadFeatureData()
+	}
+	if featureCatalog != nil && len(results) > 0 {
+		firstURL := results[0].Chunk.URL
+		for _, feature := range featureCatalog.Features {
+			if feature.Edition != "ee" || feature.DocsURL == "" || firstURL == "" {
+				continue
+			}
+			if strings.HasPrefix(firstURL, feature.DocsURL) {
+				eeFeatures = append(eeFeatures, feature.Namespace)
+			}
+		}
+	}
+
+	return &mcp.CallToolResult{Meta: map[string]interface{}{
+		"total_hits":  output.TotalHits,
+		"is_ee_query": len(eeFeatures) > 0,
+		"ee_features": eeFeatures,
+	}}, output, nil
 }
 
 // RefreshDocumentationIndex forces refresh of documentation index
