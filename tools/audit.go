@@ -24,6 +24,9 @@ func auditSecurityWithHint(ctx context.Context, req *mcp.CallToolRequest, input 
 		res = &mcp.CallToolResult{}
 	}
 	res.Content = ContentWithHint(output, output.Hint)
+	res.Meta = map[string]interface{}{
+		"security_hint": output.Hint != "",
+	}
 	return res, output, nil
 }
 
