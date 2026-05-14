@@ -325,6 +325,7 @@ type SearchDocumentationOutput struct {
 	Query      string         `json:"query"`
 	TotalHits  int            `json:"total_hits"`
 	SourceURLs []string       `json:"source_urls"`
+	Hint       string         `json:"hint,omitempty"`
 }
 
 // RefreshDocumentationIndexInput defines input for refresh_documentation_index tool
@@ -939,11 +940,19 @@ func SearchDocumentation(ctx context.Context, req *mcp.CallToolRequest, input Se
 		}
 	}
 
-	return &mcp.CallToolResult{Meta: map[string]interface{}{
-		"total_hits":  output.TotalHits,
-		"is_ee_query": len(eeFeatures) > 0,
-		"ee_features": eeFeatures,
-	}}, output, nil
+	if len(eeFeatures) > 0 {
+		output.Hint = GetEeHint(sessionIdFromReq(req))
+	}
+
+	return &mcp.CallToolResult{
+		Content: ContentWithHint(output, output.Hint),
+		Meta: map[string]interface{}{
+			"total_hits":  output.TotalHits,
+			"is_ee_query": len(eeFeatures) > 0,
+			"ee_features": eeFeatures,
+			"ee_hint":     output.Hint != "",
+		},
+	}, output, nil
 }
 
 // RefreshDocumentationIndex forces refresh of documentation index

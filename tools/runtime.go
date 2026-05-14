@@ -34,6 +34,10 @@ func DetectRuntimeEnvironment(ctx context.Context, req *mcp.CallToolRequest, inp
 		return nil, DetectRuntimeOutput{}, fmt.Errorf("failed to detect runtime: %w", err)
 	}
 
+	if runtimeInfo.IsEnterprise {
+		sessionRegistry.MarkAsEnterprise(sessionIdFromReq(req))
+	}
+
 	return nil, DetectRuntimeOutput{RuntimeInfo: runtimeInfo}, nil
 }
 
