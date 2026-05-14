@@ -6,25 +6,12 @@ import (
 	"time"
 )
 
-var eeFeatures = []string{"ee/feature-a"}
-
-func TestGetHint_EmptyFeatures(t *testing.T) {
-	cleanUp(t)
-	noCache()
-
-	for i := 0; i < 5; i++ {
-		if got := GetHint("s1", nil); got != "" {
-			t.Errorf("expected empty hint for nil eeFeatures, got %q", got)
-		}
-	}
-}
-
 func TestGetHint_BelowThreshold(t *testing.T) {
 	cleanUp(t)
 	noCache()
 
 	for i := 0; i < eeInteractionThreshold-1; i++ {
-		if got := GetHint("s1", eeFeatures); got != "" {
+		if got := GetEeHint("s1"); got != "" {
 			t.Errorf("call %d: expected empty hint below threshold, got %q", i+1, got)
 		}
 	}
@@ -35,9 +22,9 @@ func TestGetHint_AtThreshold_CooldownPassed(t *testing.T) {
 	noCache()
 
 	for i := 0; i < eeInteractionThreshold-1; i++ {
-		GetHint("s1", eeFeatures)
+		GetEeHint("s1")
 	}
-	got := GetHint("s1", eeFeatures)
+	got := GetEeHint("s1")
 	if got == "" {
 		t.Error("expected hint at threshold with no prior hint, got empty string")
 	}
@@ -48,9 +35,9 @@ func TestGetHint_AtThreshold_CooldownNotPassed(t *testing.T) {
 	mockCache(time.Now().Add(-hintCooldown / 2))
 
 	for i := 0; i < eeInteractionThreshold; i++ {
-		GetHint("s1", eeFeatures)
+		GetEeHint("s1")
 	}
-	got := GetHint("s1", eeFeatures)
+	got := GetEeHint("s1")
 	if got != "" {
 		t.Errorf("expected no hint when cooldown not passed, got %q", got)
 	}
@@ -61,29 +48,42 @@ func TestGetHint_CountResetsAfterHint(t *testing.T) {
 	noCache()
 
 	for i := 0; i < eeInteractionThreshold; i++ {
-		GetHint("s1", eeFeatures)
+		GetEeHint("s1")
 	}
 
 	for i := 0; i < eeInteractionThreshold-1; i++ {
-		if got := GetHint("s1", eeFeatures); got != "" {
+		if got := GetEeHint("s1"); got != "" {
 			t.Errorf("call %d after reset: expected empty hint, got %q", i+1, got)
 		}
 	}
-	if got := GetHint("s1", eeFeatures); got == "" {
+	if got := GetEeHint("s1"); got == "" {
 		t.Error("expected hint after counter reset and new threshold reached")
 	}
 }
 
 func TestGetHint_IndependentSessions(t *testing.T) {
 	cleanUp(t)
-	noCache()
+	// Put s1 in cooldown; s2 should still reach threshold independently.
+	readHintCache = func(id string) (time.Time, error) {
+		if id == eeInteractionsCounter+":s1" {
+			return time.Now(), nil
+		}
+		return time.Time{}, os.ErrNotExist
+	}
+	writeHintCache = func(string, time.Time) error { return nil }
 
-	for i := 0; i < eeInteractionThreshold; i++ {
-		GetHint("s1", eeFeatures)
+	for i := 0; i < eeInteractionThreshold+2; i++ {
+		GetEeHint("s1") // all suppressed by s1's cooldown
 	}
 
-	if got := GetHint("s2", eeFeatures); got != "" {
-		t.Errorf("s2 should not get hint on first call, got %q", got)
+	// s2 counter starts at zero regardless of s1's interactions
+	for i := 0; i < eeInteractionThreshold-1; i++ {
+		if got := GetEeHint("s2"); got != "" {
+			t.Errorf("s2 call %d: expected empty hint below threshold, got %q", i+1, got)
+		}
+	}
+	if got := GetEeHint("s2"); got == "" {
+		t.Error("s2 should reach threshold independently of s1")
 	}
 }
 
@@ -94,7 +94,7 @@ func TestGetHint_EEDetectedSuppression(t *testing.T) {
 	sessionRegistry.MarkAsEnterprise("s1")
 
 	for i := 0; i < eeInteractionThreshold+5; i++ {
-		if got := GetHint("s1", eeFeatures); got != "" {
+		if got := GetEeHint("s1"); got != "" {
 			t.Errorf("EE-detected session should never get a hint, got %q on call %d", got, i+1)
 		}
 	}
@@ -104,13 +104,13 @@ func TestGetHint_EEDetectedFlagSetMidSession(t *testing.T) {
 	cleanUp(t)
 	noCache()
 
-	GetHint("s1", eeFeatures)
-	GetHint("s1", eeFeatures)
+	GetEeHint("s1")
+	GetEeHint("s1")
 
 	sessionRegistry.MarkAsEnterprise("s1")
 
 	for i := 0; i < 5; i++ {
-		if got := GetHint("s1", eeFeatures); got != "" {
+		if got := GetEeHint("s1"); got != "" {
 			t.Errorf("expected no hint after EE detected, got %q", got)
 		}
 	}

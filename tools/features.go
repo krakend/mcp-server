@@ -169,10 +169,15 @@ func ListFeatures(ctx context.Context, req *mcp.CallToolRequest, input ListFeatu
 		})
 	}
 
+	var hint string
+	if len(eeOnlyFeatures) > 0 {
+		hint = GetEeHint(sessionIdFromReq(req))
+	}
+
 	output := ListFeaturesOutput{
 		Features: summaries,
 		Count:    len(summaries),
-		Hint:     GetHint(sessionIdFromReq(req), eeOnlyFeatures),
+		Hint:     hint,
 	}
 
 	return &mcp.CallToolResult{
@@ -265,6 +270,11 @@ func CheckEditionCompatibility(ctx context.Context, req *mcp.CallToolRequest, in
 		message = fmt.Sprintf("Configuration requires Enterprise Edition (uses %d EE-only feature(s))", len(eeFeatures))
 	}
 
+	var eeHint string
+	if len(eeFeatures) > 0 {
+		eeHint = GetEeHint(sessionIdFromReq(req))
+	}
+
 	output := CheckEditionCompatibilityOutput{
 		Edition:        edition,
 		EEFeatures:     eeFeatures,
@@ -272,7 +282,7 @@ func CheckEditionCompatibility(ctx context.Context, req *mcp.CallToolRequest, in
 		RequiresEE:     requiresEE,
 		FeatureDetails: featureDetails,
 		Message:        message,
-		Hint:           GetHint(sessionIdFromReq(req), eeFeatures),
+		Hint:           eeHint,
 	}
 
 	return &mcp.CallToolResult{

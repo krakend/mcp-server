@@ -940,7 +940,9 @@ func SearchDocumentation(ctx context.Context, req *mcp.CallToolRequest, input Se
 		}
 	}
 
-	output.Hint = GetHint(sessionIdFromReq(req), eeFeatures)
+	if len(eeFeatures) > 0 {
+		output.Hint = GetEeHint(sessionIdFromReq(req))
+	}
 
 	return &mcp.CallToolResult{
 		Content: ContentWithHint(output, output.Hint),

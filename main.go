@@ -154,13 +154,17 @@ func createMCPServer() *mcp.Server {
 func registerTools(server *mcp.Server) error {
 	toolCount := 0
 
-	// Core validation tools (2 tools)
+	// Core validation tools
 	if err := tools.RegisterValidationTools(server); err != nil {
 		return fmt.Errorf("failed to register validation tools: %w", err)
 	}
-	toolCount += 2
+	toolCount++
 
-	// Runtime detection tool (1 tool)
+	// Security audit tool
+	tools.RegisterAuditTool(server)
+	toolCount++
+
+	// Runtime detection tool
 	tools.RegisterRuntimeTools(server)
 	toolCount++
 
