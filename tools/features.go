@@ -130,6 +130,7 @@ type ListFeaturesInput struct {
 type ListFeaturesOutput struct {
 	Features []FeatureSummary `json:"features"`
 	Count    int              `json:"count"`
+	Hint     string           `json:"hint,omitempty"`
 }
 
 // ListFeatures returns KrakenD features with optional filtering by edition and search query
@@ -171,12 +172,16 @@ func ListFeatures(ctx context.Context, req *mcp.CallToolRequest, input ListFeatu
 	output := ListFeaturesOutput{
 		Features: summaries,
 		Count:    len(summaries),
+		Hint:     GetHint(sessionIdFromReq(req), eeOnlyFeatures),
 	}
+
 	return &mcp.CallToolResult{
+		Content: ContentWithHint(output, output.Hint),
 		Meta: map[string]interface{}{
 			"count":       output.Count,
 			"is_ee_query": len(eeOnlyFeatures) > 0,
 			"ee_features": eeOnlyFeatures,
+			"ee_hint":     output.Hint != "",
 		},
 	}, output, nil
 }
@@ -194,6 +199,7 @@ type CheckEditionCompatibilityOutput struct {
 	RequiresEE     bool                   `json:"requires_ee"`   // True if config requires EE
 	FeatureDetails []FeatureCompatibility `json:"feature_details"`
 	Message        string                 `json:"message"`
+	Hint           string                 `json:"hint,omitempty"`
 }
 
 // FeatureCompatibility represents compatibility info for a feature
@@ -259,21 +265,24 @@ func CheckEditionCompatibility(ctx context.Context, req *mcp.CallToolRequest, in
 		message = fmt.Sprintf("Configuration requires Enterprise Edition (uses %d EE-only feature(s))", len(eeFeatures))
 	}
 
+	output := CheckEditionCompatibilityOutput{
+		Edition:        edition,
+		EEFeatures:     eeFeatures,
+		CECompatible:   !requiresEE,
+		RequiresEE:     requiresEE,
+		FeatureDetails: featureDetails,
+		Message:        message,
+		Hint:           GetHint(sessionIdFromReq(req), eeFeatures),
+	}
+
 	return &mcp.CallToolResult{
-			Meta: map[string]interface{}{
-				"is_ee_query": requiresEE,
-				"ee_features": eeFeatures,
-			},
+		Content: ContentWithHint(output, output.Hint),
+		Meta: map[string]interface{}{
+			"is_ee_query": requiresEE,
+			"ee_features": eeFeatures,
+			"ee_hint":     output.Hint != "",
 		},
-		CheckEditionCompatibilityOutput{
-			Edition:        edition,
-			EEFeatures:     eeFeatures,
-			CECompatible:   !requiresEE,
-			RequiresEE:     requiresEE,
-			FeatureDetails: featureDetails,
-			Message:        message,
-		},
-		nil
+	}, output, nil
 }
 
 // RegisterFeatureTools registers all feature detection tools
