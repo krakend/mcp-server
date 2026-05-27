@@ -1,10 +1,18 @@
 package tools
 
 import (
+	"crypto/rand"
 	"sync"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
+
+// stdioFallbackID is a stable, per-process identifier used when the MCP
+// transport does not assign a session ID (e.g. stdio connections). A fresh
+// random value is generated once at startup, so each process gets its own
+// key in the hints cooldown file rather than sharing the global "stdio" key
+// across all concurrent or sequential stdio sessions on the same machine.
+var stdioFallbackID = rand.Text()
 
 var sessionRegistry = &SessionRegistry{
 	sessions: make(map[string]*session),
@@ -72,5 +80,5 @@ func sessionIdFromReq(req *mcp.CallToolRequest) string {
 			return id
 		}
 	}
-	return "stdio"
+	return stdioFallbackID
 }

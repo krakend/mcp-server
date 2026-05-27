@@ -181,7 +181,8 @@ func ListFeatures(ctx context.Context, req *mcp.CallToolRequest, input ListFeatu
 	}
 
 	return &mcp.CallToolResult{
-		Content: ContentWithHint(output, output.Hint),
+		// Content is nil: SDK auto-generates a single JSON TextContent block
+		// from the typed output (Hint included as plain data field).
 		Meta: map[string]interface{}{
 			"count":       output.Count,
 			"is_ee_query": len(eeOnlyFeatures) > 0,
@@ -268,6 +269,7 @@ func CheckEditionCompatibility(ctx context.Context, req *mcp.CallToolRequest, in
 	if requiresEE {
 		edition = "ee"
 		message = fmt.Sprintf("Configuration requires Enterprise Edition (uses %d EE-only feature(s))", len(eeFeatures))
+		sessionRegistry.MarkAsEnterprise(sessionIdFromReq(req))
 	}
 
 	var eeHint string
@@ -286,7 +288,8 @@ func CheckEditionCompatibility(ctx context.Context, req *mcp.CallToolRequest, in
 	}
 
 	return &mcp.CallToolResult{
-		Content: ContentWithHint(output, output.Hint),
+		// Content is nil: SDK auto-generates a single JSON TextContent block
+		// from the typed output (Hint included as plain data field).
 		Meta: map[string]interface{}{
 			"is_ee_query": requiresEE,
 			"ee_features": eeFeatures,

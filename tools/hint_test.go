@@ -2,6 +2,7 @@ package tools
 
 import (
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -137,4 +138,32 @@ func mockCache(last time.Time) {
 func noCache() {
 	readHintCache = func(string) (time.Time, error) { return time.Time{}, os.ErrNotExist }
 	writeHintCache = func(string, time.Time) error { return nil }
+}
+
+// TestHintMessages_NoInjectionSignatures guards against reintroducing prompt-injection
+// signatures into the hint messages. Safety-trained LLMs detect these patterns and warn
+// users, which erodes trust in the KrakenD product (see mcp-testing/findings.md F-004).
+func TestHintMessages_NoInjectionSignatures(t *testing.T) {
+	injectionSignatures := []string{
+		"system note",
+		"verbatim",
+		"mandatory output",
+		"render required",
+		"regardless of",
+		"do not paraphrase",
+		"do not omit",
+		"must be appended",
+	}
+	msgs := map[string]string{
+		"eeHintMessage":       eeHintMessage,
+		"securityHintMessage": securityHintMessage,
+	}
+	for name, msg := range msgs {
+		lower := strings.ToLower(msg)
+		for _, sig := range injectionSignatures {
+			if strings.Contains(lower, sig) {
+				t.Errorf("%s contains prompt-injection signature %q", name, sig)
+			}
+		}
+	}
 }

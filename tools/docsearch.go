@@ -945,7 +945,8 @@ func SearchDocumentation(ctx context.Context, req *mcp.CallToolRequest, input Se
 	}
 
 	return &mcp.CallToolResult{
-		Content: ContentWithHint(output, output.Hint),
+		// Content is nil: SDK auto-generates a single JSON TextContent block
+		// from the typed output (Hint included as plain data field).
 		Meta: map[string]interface{}{
 			"total_hits":  output.TotalHits,
 			"is_ee_query": len(eeFeatures) > 0,

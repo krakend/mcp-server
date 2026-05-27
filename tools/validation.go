@@ -25,12 +25,11 @@ const (
 
 // Re-export functions from validation subpackage
 var (
-	DetectEnvironment             = validation.DetectEnvironment
-	DetectFlexibleConfiguration   = validation.DetectFlexibleConfiguration
-	ExtractVersionFromConfig      = validation.ExtractVersionFromConfig
-	GetLocalKrakenDVersion        = validation.GetLocalKrakenDVersion
-	ValidateConfig                = validation.ValidateConfig
-	AuditSecurity                 = validation.AuditSecurity
-	RegisterValidationTools       = validation.RegisterValidationTools
+	DetectEnvironment           = validation.DetectEnvironment
+	DetectFlexibleConfiguration = validation.DetectFlexibleConfiguration
+	ExtractVersionFromConfig    = validation.ExtractVersionFromConfig
+	GetLocalKrakenDVersion      = validation.GetLocalKrakenDVersion
+	ValidateConfig              = validation.ValidateConfig
+	AuditSecurity               = validation.AuditSecurity
 )
 

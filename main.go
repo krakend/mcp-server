@@ -155,9 +155,7 @@ func registerTools(server *mcp.Server) error {
 	toolCount := 0
 
 	// Core validation tools
-	if err := tools.RegisterValidationTools(server); err != nil {
-		return fmt.Errorf("failed to register validation tools: %w", err)
-	}
+	tools.RegisterValidateConfigTool(server)
 	toolCount++
 
 	// Security audit tool
