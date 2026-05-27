@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 
+	"github.com/krakend/mcp-server/internal/features"
 	"github.com/krakend/mcp-server/tools/validation"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -11,6 +12,15 @@ func auditSecurityWithHint(ctx context.Context, req *mcp.CallToolRequest, input 
 	res, output, err := validation.AuditSecurity(ctx, req, input)
 	if err != nil {
 		return res, output, err
+	}
+
+	// Mark the session as Enterprise if the config uses EE features.
+	// readConfigContent handles both JSON strings and file paths; errors are
+	// silently ignored — detection is best-effort.
+	if configContent, readErr := readConfigContent(input.Config); readErr == nil {
+		if features.DetectEnterpriseFeaturesSimple(configContent) {
+			sessionRegistry.MarkAsEnterprise(sessionIdFromReq(req))
+		}
 	}
 
 	for _, issue := range output.Issues {
@@ -23,7 +33,8 @@ func auditSecurityWithHint(ctx context.Context, req *mcp.CallToolRequest, input 
 	if res == nil {
 		res = &mcp.CallToolResult{}
 	}
-	res.Content = ContentWithHint(output, output.Hint)
+	// Content is left nil: the SDK auto-generates a single JSON TextContent
+	// block from the typed output (Hint field included as plain data).
 	res.Meta = map[string]interface{}{
 		"security_hint": output.Hint != "",
 	}
