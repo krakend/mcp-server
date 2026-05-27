@@ -154,17 +154,19 @@ func createMCPServer() *mcp.Server {
 func registerTools(server *mcp.Server) error {
 	toolCount := 0
 
-	// Phase 1: Core validation tools (2 tools)
-	if err := tools.RegisterValidationTools(server); err != nil {
-		return fmt.Errorf("failed to register validation tools: %w", err)
-	}
-	toolCount += 2
+	// Core validation tools
+	tools.RegisterValidateConfigTool(server)
+	toolCount++
 
-	// Phase 1: Runtime detection tool (1 tool)
+	// Security audit tool
+	tools.RegisterAuditTool(server)
+	toolCount++
+
+	// Runtime detection tool
 	tools.RegisterRuntimeTools(server)
 	toolCount++
 
-	// Phase 1: Documentation search tools (2 tools)
+	// Documentation search tools (2 tools)
 	if err := tools.RegisterDocSearchTools(server); err != nil {
 		log.Printf("Warning: Failed to register doc search tools: %v", err)
 		log.Printf("Documentation search will be unavailable")
@@ -172,7 +174,7 @@ func registerTools(server *mcp.Server) error {
 		toolCount += 2
 	}
 
-	// Phase 1: Feature detection tools (2 tools)
+	// Feature detection tools (2 tools)
 	if err := tools.RegisterFeatureTools(server); err != nil {
 		return fmt.Errorf("failed to register feature tools: %w", err)
 	}
@@ -183,7 +185,7 @@ func registerTools(server *mcp.Server) error {
 }
 
 // registerResources registers all MCP resources
-func registerResources(server *mcp.Server) error {
+func registerResources(_ *mcp.Server) error {
 	// TODO: Register schema resources
 	// TODO: Register feature catalog resources
 	// TODO: Register examples resources
@@ -195,7 +197,7 @@ func registerResources(server *mcp.Server) error {
 }
 
 // registerPrompts registers all MCP prompts
-func registerPrompts(server *mcp.Server) error {
+func registerPrompts(_ *mcp.Server) error {
 	// TODO: Register validation workflow prompts
 	// TODO: Register creation workflow prompts
 	// TODO: Register feature addition prompts

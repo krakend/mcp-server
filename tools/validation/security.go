@@ -38,6 +38,7 @@ type AuditSecurityOutput struct {
 	Summary     string                 `json:"summary"`
 	Score       int                    `json:"score,omitempty"` // 0-100 security score
 	Environment *ValidationEnvironment `json:"environment,omitempty"`
+	Hint        string                 `json:"hint,omitempty"`
 }
 
 // AuditSecurity performs security audit of KrakenD configuration using three-tier fallback

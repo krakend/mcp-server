@@ -130,6 +130,7 @@ type ListFeaturesInput struct {
 type ListFeaturesOutput struct {
 	Features []FeatureSummary `json:"features"`
 	Count    int              `json:"count"`
+	Hint     string           `json:"hint,omitempty"`
 }
 
 // ListFeatures returns KrakenD features with optional filtering by edition and search query
@@ -142,6 +143,8 @@ func ListFeatures(ctx context.Context, req *mcp.CallToolRequest, input ListFeatu
 
 	query := strings.ToLower(input.Query)
 
+	eeOnlyFeatures := make([]string, 0)
+
 	summaries := make([]FeatureSummary, 0, len(featureCatalog.Features))
 	for _, feature := range featureCatalog.Features {
 		if input.EE && feature.Edition != "ee" {
@@ -153,6 +156,9 @@ func ListFeatures(ctx context.Context, req *mcp.CallToolRequest, input ListFeatu
 				continue
 			}
 		}
+		if feature.Edition == "ee" {
+			eeOnlyFeatures = append(eeOnlyFeatures, feature.Namespace)
+		}
 		summaries = append(summaries, FeatureSummary{
 			Name:        feature.Name,
 			Namespace:   feature.Namespace,
@@ -163,11 +169,27 @@ func ListFeatures(ctx context.Context, req *mcp.CallToolRequest, input ListFeatu
 		})
 	}
 
+	var hint string
+	if len(eeOnlyFeatures) > 0 {
+		hint = GetEeHint(sessionIdFromReq(req))
+	}
+
 	output := ListFeaturesOutput{
 		Features: summaries,
 		Count:    len(summaries),
+		Hint:     hint,
 	}
-	return &mcp.CallToolResult{Meta: map[string]interface{}{"count": output.Count}}, output, nil
+
+	return &mcp.CallToolResult{
+		// Content is nil: SDK auto-generates a single JSON TextContent block
+		// from the typed output (Hint included as plain data field).
+		Meta: map[string]interface{}{
+			"count":       output.Count,
+			"is_ee_query": len(eeOnlyFeatures) > 0,
+			"ee_features": eeOnlyFeatures,
+			"ee_hint":     output.Hint != "",
+		},
+	}, output, nil
 }
 
 // CheckEditionCompatibilityInput defines input for check_edition_compatibility tool
@@ -183,6 +205,7 @@ type CheckEditionCompatibilityOutput struct {
 	RequiresEE     bool                   `json:"requires_ee"`   // True if config requires EE
 	FeatureDetails []FeatureCompatibility `json:"feature_details"`
 	Message        string                 `json:"message"`
+	Hint           string                 `json:"hint,omitempty"`
 }
 
 // FeatureCompatibility represents compatibility info for a feature
@@ -246,16 +269,33 @@ func CheckEditionCompatibility(ctx context.Context, req *mcp.CallToolRequest, in
 	if requiresEE {
 		edition = "ee"
 		message = fmt.Sprintf("Configuration requires Enterprise Edition (uses %d EE-only feature(s))", len(eeFeatures))
+		sessionRegistry.MarkAsEnterprise(sessionIdFromReq(req))
 	}
 
-	return nil, CheckEditionCompatibilityOutput{
+	var eeHint string
+	if len(eeFeatures) > 0 {
+		eeHint = GetEeHint(sessionIdFromReq(req))
+	}
+
+	output := CheckEditionCompatibilityOutput{
 		Edition:        edition,
 		EEFeatures:     eeFeatures,
 		CECompatible:   !requiresEE,
 		RequiresEE:     requiresEE,
 		FeatureDetails: featureDetails,
 		Message:        message,
-	}, nil
+		Hint:           eeHint,
+	}
+
+	return &mcp.CallToolResult{
+		// Content is nil: SDK auto-generates a single JSON TextContent block
+		// from the typed output (Hint included as plain data field).
+		Meta: map[string]interface{}{
+			"is_ee_query": requiresEE,
+			"ee_features": eeFeatures,
+			"ee_hint":     output.Hint != "",
+		},
+	}, output, nil
 }
 
 // RegisterFeatureTools registers all feature detection tools

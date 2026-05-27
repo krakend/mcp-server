@@ -95,6 +95,9 @@ func NewUsageMethodHandlerFactory(ctx context.Context, reporter Reporter) func(n
 			result, err := next(ctx, method, req)
 
 			event.WithResponse(result)
+			// this has to be called after the method has been executed, so we can capture the session data (client name/version) in the "initialize" event
+			event.WithSession(req)
+
 			if err != nil {
 				event.SetError(err)
 			}

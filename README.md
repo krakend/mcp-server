@@ -3,7 +3,7 @@
 **Universal MCP server for KrakenD API Gateway configuration validation, security auditing, and intelligent configuration assistance.**
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
-[![Go Version](https://img.shields.io/badge/Go-1.21+-blue.svg)](https://golang.org)
+[![Go Version](https://img.shields.io/badge/Go-1.25+-blue.svg)](https://golang.org)
 [![MCP Protocol](https://img.shields.io/badge/MCP-1.0-green.svg)](https://modelcontextprotocol.io)
 
 ## Overview
@@ -540,6 +540,8 @@ See the "Building from Source" section above for detailed build instructions.
 ## Usage Analytics
 
 The MCP server collects **anonymous usage data** to help understand which tools are being used and how they perform. This allows us to prioritize improvements, detect widespread errors, and make better product decisions.
+
+Data collected per event includes: MCP method called, tool name, session ID, execution duration, errors, MCP client name and version (e.g. `claude-code 1.2.3`, `cursor 0.42`) as reported by the client during the MCP handshake, and tool-specific metadata (e.g. result counts, whether the query touched Enterprise Edition features).
 
 > **No sensitive information is ever sent.** Your KrakenD configuration contents, search queries, file paths, and any other inputs or outputs are never included in the reported data.
 
