@@ -167,3 +167,35 @@ func TestFetchRemoteFeatureMatrix_ParseError(t *testing.T) {
 		t.Fatal("expected error for invalid YAML, got nil")
 	}
 }
+
+func TestParseRemoteYAML_SharedNamespace(t *testing.T) {
+	data := `
+sections:
+  - name: "Telemetry"
+    features:
+      - name: "Logging"
+        ee: false
+        namespaces:
+          - "telemetry/logging"
+      - name: "Custom access log"
+        ee: true
+        namespaces:
+          - "telemetry/logging"
+      - name: "Advanced Logging"
+        ee: true
+        namespaces:
+          - "telemetry/logging"
+          - "telemetry/gelf"
+`
+	_, matrix, err := parseRemoteYAML([]byte(data))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(matrix.EEOnlyFeatures) != 1 || matrix.EEOnlyFeatures[0] != "telemetry/gelf" {
+		t.Errorf("expected only telemetry/gelf as EE-only, got %v", matrix.EEOnlyFeatures)
+	}
+	if len(matrix.SharedFeatures) != 1 || matrix.SharedFeatures[0] != "telemetry/logging" {
+		t.Errorf("expected telemetry/logging as shared, got %v", matrix.SharedFeatures)
+	}
+}

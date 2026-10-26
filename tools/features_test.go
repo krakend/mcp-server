@@ -2,10 +2,15 @@ package tools
 
 import (
 	"context"
+	"errors"
+	"reflect"
+	"sort"
+	"strings"
 	"testing"
 
 	"github.com/krakend/mcp-server/internal/features"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
 const minimalFeatureYAML = `
@@ -351,5 +356,211 @@ func TestListFeatures_QueryFilter_NoMatch(t *testing.T) {
 	}
 	if output.Features == nil {
 		t.Error("Features slice should not be nil")
+	}
+}
+
+// editionYAML mirrors the real matrix: several namespaces are used by both CE and EE features
+const editionYAML = `
+sections:
+  - name: "Telemetry"
+    features:
+      - name: "Logging"
+        ee: false
+        namespaces:
+          - "telemetry/logging"
+      - name: "Custom access log"
+        ee: true
+        namespaces:
+          - "telemetry/logging"
+      - name: "OpenTelemetry"
+        ee: false
+        namespaces:
+          - "telemetry/opentelemetry"
+      - name: "Exporter Override for OpenTelemetry"
+        ee: true
+        namespaces:
+          - "telemetry/opentelemetry"
+  - name: "Scripting"
+    features:
+      - name: "Lua scripting"
+        ee: false
+        namespaces:
+          - "modifier/lua-proxy"
+      - name: "Lua advanced helpers"
+        ee: true
+        namespaces:
+          - "modifier/lua-proxy"
+  - name: "Traffic Management"
+    features:
+      - name: "Service Rate Limit"
+        ee: true
+        namespaces:
+          - "qos/ratelimit/service"
+`
+
+const editionSchema = `{
+  "type": "object",
+  "properties": {
+    "extra_config": {
+      "type": "object",
+      "properties": {
+        "telemetry/logging": {
+          "type": "object",
+          "properties": {"access_log_format": {"description": "Enterprise only. Access log format"}}
+        },
+        "telemetry/opentelemetry": {"type": "object"},
+        "qos/ratelimit/service": {"description": "Enterprise only. Service rate limit"}
+      }
+    },
+    "endpoints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "extra_config": {
+            "type": "object",
+            "properties": {
+              "modifier/lua-proxy": {"type": "object"},
+              "telemetry/opentelemetry": {
+                "type": "object",
+                "properties": {"exporters_override": {"description": "Enterprise only. Override exporters"}}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}`
+
+// reportedCEConfig is the CE-only config from the bug report that was flagged as EE
+const reportedCEConfig = `{ "version": 3,
+  "extra_config": {
+    "telemetry/opentelemetry": { "exporters": { "prometheus": [{ "name": "local", "port": 9090 }] } },
+    "telemetry/logging": { "level": "INFO", "stdout": true } },
+  "endpoints": [{ "endpoint": "/r1",
+    "extra_config": { "modifier/lua-proxy": { "pre": "print('x')" } },
+    "backend": [{ "host": ["http://api:8000"], "url_pattern": "/hello.json" }] }] }`
+
+func setMockSchema(t *testing.T, raw string, loadErr error) {
+	t.Helper()
+	orig := loadSchema
+	t.Cleanup(func() { loadSchema = orig })
+	if loadErr != nil {
+		loadSchema = func(string) (*jsonschema.Schema, error) { return nil, loadErr }
+		return
+	}
+	doc, err := jsonschema.UnmarshalJSON(strings.NewReader(raw))
+	if err != nil {
+		t.Fatalf("invalid test schema: %v", err)
+	}
+	c := jsonschema.NewCompiler()
+	if err := c.AddResource("schema.json", doc); err != nil {
+		t.Fatalf("add resource: %v", err)
+	}
+	schema, err := c.Compile("schema.json")
+	if err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+	loadSchema = func(string) (*jsonschema.Schema, error) { return schema, nil }
+}
+
+func callCheckEdition(t *testing.T, config string) CheckEditionCompatibilityOutput {
+	t.Helper()
+	cleanUp(t)
+	noCache()
+	_, output, err := CheckEditionCompatibility(context.Background(), &mcp.CallToolRequest{}, CheckEditionCompatibilityInput{Config: config})
+	if err != nil {
+		t.Fatalf("CheckEditionCompatibility returned unexpected error: %v", err)
+	}
+	return output
+}
+
+func TestCheckEditionCompatibility_SharedNamespacesCEUsage(t *testing.T) {
+	setMockFeatureFetcher(t, editionYAML)
+	setMockSchema(t, editionSchema, nil)
+
+	output := callCheckEdition(t, reportedCEConfig)
+
+	if output.Edition != "ce" || output.RequiresEE || !output.CECompatible {
+		t.Errorf("expected CE result, got edition=%q requires_ee=%v ee_features=%v", output.Edition, output.RequiresEE, output.EEFeatures)
+	}
+	if len(output.EEFeatures) != 0 {
+		t.Errorf("expected no EE features, got %v", output.EEFeatures)
+	}
+	for _, d := range output.FeatureDetails {
+		if d.Edition != "ce" || !d.Available {
+			t.Errorf("expected %s to be CE and available, got %+v", d.Namespace, d)
+		}
+	}
+}
+
+func TestCheckEditionCompatibility_SharedNamespaceEEAttribute(t *testing.T) {
+	setMockFeatureFetcher(t, editionYAML)
+	setMockSchema(t, editionSchema, nil)
+
+	output := callCheckEdition(t, `{
+		"version": 3,
+		"extra_config": {"telemetry/logging": {"level": "INFO", "access_log_format": "json"}},
+		"endpoints": [{"extra_config": {
+			"telemetry/opentelemetry": {"exporters_override": {}},
+			"modifier/lua-proxy": {"pre": "print('x')"}
+		}}]
+	}`)
+
+	if output.Edition != "ee" || !output.RequiresEE {
+		t.Errorf("expected EE result, got edition=%q", output.Edition)
+	}
+	sort.Strings(output.EEFeatures)
+	wantFeatures := []string{"telemetry/logging", "telemetry/opentelemetry"}
+	if !reflect.DeepEqual(output.EEFeatures, wantFeatures) {
+		t.Errorf("ee_features: got %v, want %v", output.EEFeatures, wantFeatures)
+	}
+	sort.Strings(output.EEAttributes)
+	wantAttrs := []string{
+		"$.endpoints[0].extra_config.telemetry/opentelemetry.exporters_override",
+		"$.extra_config.telemetry/logging.access_log_format",
+	}
+	if !reflect.DeepEqual(output.EEAttributes, wantAttrs) {
+		t.Errorf("ee_attributes: got %v, want %v", output.EEAttributes, wantAttrs)
+	}
+	for _, d := range output.FeatureDetails {
+		wantEE := d.Namespace != "modifier/lua-proxy"
+		if (d.Edition == "ee") != wantEE || d.Available == wantEE {
+			t.Errorf("unexpected feature detail %+v", d)
+		}
+	}
+}
+
+func TestCheckEditionCompatibility_SchemaUnavailable(t *testing.T) {
+	setMockFeatureFetcher(t, editionYAML)
+	setMockSchema(t, "", errors.New("connection refused"))
+
+	output := callCheckEdition(t, reportedCEConfig)
+
+	if output.Edition != "ce" || output.RequiresEE {
+		t.Errorf("expected CE result when schema is unavailable, got edition=%q", output.Edition)
+	}
+	sort.Strings(output.ReviewFeatures)
+	want := []string{"modifier/lua-proxy", "telemetry/logging", "telemetry/opentelemetry"}
+	if !reflect.DeepEqual(output.ReviewFeatures, want) {
+		t.Errorf("review_features: got %v, want %v", output.ReviewFeatures, want)
+	}
+}
+
+func TestCheckEditionCompatibility_ExclusiveEENamespace(t *testing.T) {
+	setMockFeatureFetcher(t, editionYAML)
+	setMockSchema(t, "", errors.New("schema must not be needed"))
+
+	output := callCheckEdition(t, `{"version": 3, "extra_config": {"qos/ratelimit/service": {"max_rate": 10}}}`)
+
+	if output.Edition != "ee" || !output.RequiresEE {
+		t.Errorf("expected EE result, got edition=%q", output.Edition)
+	}
+	if len(output.EEFeatures) != 1 || output.EEFeatures[0] != "qos/ratelimit/service" {
+		t.Errorf("unexpected ee_features: %v", output.EEFeatures)
+	}
+	if len(output.ReviewFeatures) != 0 {
+		t.Errorf("expected no review features, got %v", output.ReviewFeatures)
 	}
 }

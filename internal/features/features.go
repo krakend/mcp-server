@@ -44,6 +44,7 @@ type FeatureCatalog struct {
 type EditionMatrix struct {
 	CEFeatures     []string                          `json:"ce_features"`
 	EEOnlyFeatures []string                          `json:"ee_only_features"`
+	SharedFeatures []string                          `json:"shared_features"` // Namespaces used by both CE and EE features
 	FeatureDetails map[string]map[string]interface{} `json:"feature_details"`
 	Version        string                            `json:"version"`
 	LastUpdated    string                            `json:"last_updated"`

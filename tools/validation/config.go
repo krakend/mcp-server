@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/krakend/mcp-server/internal/features"
@@ -633,6 +634,48 @@ func downloadSchema(url string) ([]byte, error) {
 	}
 
 	return io.ReadAll(resp.Body)
+}
+
+var (
+	compiledSchemasMu sync.Mutex
+	compiledSchemas   = map[string]*jsonschema.Schema{}
+)
+
+// schemaURLLoader resolves remote schema references through downloadSchema
+type schemaURLLoader struct{}
+
+func (schemaURLLoader) Load(url string) (any, error) {
+	content, err := downloadSchema(url)
+	if err != nil {
+		return nil, err
+	}
+	return jsonschema.UnmarshalJSON(bytes.NewReader(content))
+}
+
+// LoadSchema returns the compiled KrakenD JSON schema matching the config $schema
+// version. Compiled schemas are cached in memory per URL; failures are not cached.
+func LoadSchema(configJSON string) (*jsonschema.Schema, error) {
+	schemaURL := "https://www.krakend.io/schema/krakend.json"
+	if v := ExtractVersionFromConfig(configJSON); v != "latest" {
+		schemaURL = fmt.Sprintf("https://www.krakend.io/schema/v%s/krakend.json", v)
+	}
+
+	compiledSchemasMu.Lock()
+	defer compiledSchemasMu.Unlock()
+
+	if schema, ok := compiledSchemas[schemaURL]; ok {
+		return schema, nil
+	}
+
+	// The loader is needed for the unversioned schema, which only $refs the latest version
+	compiler := jsonschema.NewCompiler()
+	compiler.UseLoader(jsonschema.SchemeURLLoader{"https": schemaURLLoader{}})
+	schema, err := compiler.Compile(schemaURL)
+	if err != nil {
+		return nil, fmt.Errorf("load schema %s: %w", schemaURL, err)
+	}
+	compiledSchemas[schemaURL] = schema
+	return schema, nil
 }
 
 // validateBasicSchema performs basic schema validation
