@@ -409,7 +409,8 @@ const editionSchema = `{
           "properties": {"access_log_format": {"description": "Enterprise only. Access log format"}}
         },
         "telemetry/opentelemetry": {"type": "object"},
-        "qos/ratelimit/service": {"description": "Enterprise only. Service rate limit"}
+        "qos/ratelimit/service": {"description": "Enterprise only. Service rate limit"},
+        "modifier/response-headers": {"description": "Enterprise only. Transform response headers"}
       }
     },
     "endpoints": {
@@ -550,17 +551,35 @@ func TestCheckEditionCompatibility_SchemaUnavailable(t *testing.T) {
 
 func TestCheckEditionCompatibility_ExclusiveEENamespace(t *testing.T) {
 	setMockFeatureFetcher(t, editionYAML)
-	setMockSchema(t, "", errors.New("schema must not be needed"))
+	setMockSchema(t, "", errors.New("connection refused"))
 
 	output := callCheckEdition(t, `{"version": 3, "extra_config": {"qos/ratelimit/service": {"max_rate": 10}}}`)
 
 	if output.Edition != "ee" || !output.RequiresEE {
-		t.Errorf("expected EE result, got edition=%q", output.Edition)
+		t.Errorf("expected EE result from the matrix alone, got edition=%q", output.Edition)
 	}
 	if len(output.EEFeatures) != 1 || output.EEFeatures[0] != "qos/ratelimit/service" {
 		t.Errorf("unexpected ee_features: %v", output.EEFeatures)
 	}
 	if len(output.ReviewFeatures) != 0 {
 		t.Errorf("expected no review features, got %v", output.ReviewFeatures)
+	}
+}
+
+func TestCheckEditionCompatibility_SchemaEENamespaceMissingFromMatrix(t *testing.T) {
+	setMockFeatureFetcher(t, editionYAML)
+	setMockSchema(t, editionSchema, nil)
+
+	output := callCheckEdition(t, `{"version": 3, "extra_config": {"modifier/response-headers": {}}}`)
+
+	if output.Edition != "ee" || !output.RequiresEE {
+		t.Errorf("expected EE result, got edition=%q", output.Edition)
+	}
+	if len(output.EEFeatures) != 1 || output.EEFeatures[0] != "modifier/response-headers" {
+		t.Errorf("unexpected ee_features: %v", output.EEFeatures)
+	}
+	want := []string{"$.extra_config.modifier/response-headers"}
+	if !reflect.DeepEqual(output.EEAttributes, want) {
+		t.Errorf("ee_attributes: got %v, want %v", output.EEAttributes, want)
 	}
 }

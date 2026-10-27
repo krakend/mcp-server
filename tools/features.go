@@ -206,7 +206,7 @@ type CheckEditionCompatibilityInput struct {
 type CheckEditionCompatibilityOutput struct {
 	Edition        string                 `json:"edition"`                   // "ce", "ee", or "mixed"
 	EEFeatures     []string               `json:"ee_features"`               // List of EE-only features found
-	EEAttributes   []string               `json:"ee_attributes,omitempty"`   // JSON paths of EE-only attributes in shared namespaces
+	EEAttributes   []string               `json:"ee_attributes,omitempty"`   // JSON paths the schema flags as Enterprise only
 	ReviewFeatures []string               `json:"review_features,omitempty"` // Shared namespaces that could not be checked against the schema
 	CECompatible   bool                   `json:"ce_compatible"`             // True if config works with CE
 	RequiresEE     bool                   `json:"requires_ee"`               // True if config requires EE
@@ -237,38 +237,36 @@ func CheckEditionCompatibility(ctx context.Context, req *mcp.CallToolRequest, in
 		return nil, CheckEditionCompatibilityOutput{}, fmt.Errorf("invalid JSON: %w", err)
 	}
 
-	// Namespaces shared by CE and EE features need a schema check to tell which edition the usage requires
+	// The schema is checked for every namespace: shared namespaces need it to tell which
+	// edition a usage requires, and the matrix does not list every EE namespace
 	sharedSet := make(map[string]struct{}, len(editionMatrix.SharedFeatures))
 	for _, ns := range editionMatrix.SharedFeatures {
 		sharedSet[ns] = struct{}{}
 	}
-	usedShared := []string{}
-	for _, ns := range features.ExtraConfigNamespaces(config) {
-		if _, ok := sharedSet[ns]; ok {
-			usedShared = append(usedShared, ns)
-		}
-	}
+	extraConfigNamespaces := features.ExtraConfigNamespaces(config)
 
-	sharedEE := map[string]bool{}
+	schemaEE := map[string]bool{}
 	var eeAttributes, reviewFeatures []string
-	if len(usedShared) > 0 {
+	if len(extraConfigNamespaces) > 0 {
 		schema, err := loadSchema(input.Config)
 		if err != nil {
 			log.Printf("Warning: could not load JSON schema for edition check: %v", err)
-			reviewFeatures = usedShared
+			for _, ns := range extraConfigNamespaces {
+				if _, ok := sharedSet[ns]; ok {
+					reviewFeatures = append(reviewFeatures, ns)
+				}
+			}
 		} else {
 			for _, usage := range features.FindEnterpriseUsages(schema, config) {
-				if _, ok := sharedSet[usage.Namespace]; ok {
-					sharedEE[usage.Namespace] = true
-					eeAttributes = append(eeAttributes, usage.Path)
-				}
+				schemaEE[usage.Namespace] = true
+				eeAttributes = append(eeAttributes, usage.Path)
 			}
 		}
 	}
 
-	// Find all namespaces used in config, including slash-less shared ones such as "proxy"
+	// Find all namespaces used in config, including slash-less ones such as "proxy"
 	namespaces := features.FindNamespacesInConfig(config)
-	for _, ns := range usedShared {
+	for _, ns := range extraConfigNamespaces {
 		if !slices.Contains(namespaces, ns) {
 			namespaces = append(namespaces, ns)
 		}
@@ -282,7 +280,7 @@ func CheckEditionCompatibility(ctx context.Context, req *mcp.CallToolRequest, in
 	// Check each namespace against edition matrix
 	for _, ns := range namespaces {
 		_, isShared := sharedSet[ns]
-		isEEOnly := sharedEE[ns] || slices.Contains(editionMatrix.EEOnlyFeatures, ns)
+		isEEOnly := schemaEE[ns] || slices.Contains(editionMatrix.EEOnlyFeatures, ns)
 		if isEEOnly {
 			requiresEE = true
 			eeFeatures = append(eeFeatures, ns)

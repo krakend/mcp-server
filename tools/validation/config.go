@@ -636,9 +636,13 @@ func downloadSchema(url string) ([]byte, error) {
 	return io.ReadAll(resp.Body)
 }
 
+// schemaRetryAfter avoids paying the download timeout on every call while offline
+const schemaRetryAfter = 5 * time.Minute
+
 var (
 	compiledSchemasMu sync.Mutex
 	compiledSchemas   = map[string]*jsonschema.Schema{}
+	schemaFailures    = map[string]time.Time{}
 )
 
 // schemaURLLoader resolves remote schema references through downloadSchema
@@ -653,7 +657,8 @@ func (schemaURLLoader) Load(url string) (any, error) {
 }
 
 // LoadSchema returns the compiled KrakenD JSON schema matching the config $schema
-// version. Compiled schemas are cached in memory per URL; failures are not cached.
+// version. Compiled schemas are cached in memory per URL; a failed load is not
+// retried for schemaRetryAfter.
 func LoadSchema(configJSON string) (*jsonschema.Schema, error) {
 	schemaURL := "https://www.krakend.io/schema/krakend.json"
 	if v := ExtractVersionFromConfig(configJSON); v != "latest" {
@@ -666,14 +671,19 @@ func LoadSchema(configJSON string) (*jsonschema.Schema, error) {
 	if schema, ok := compiledSchemas[schemaURL]; ok {
 		return schema, nil
 	}
+	if failedAt, ok := schemaFailures[schemaURL]; ok && time.Since(failedAt) < schemaRetryAfter {
+		return nil, fmt.Errorf("load schema %s: previous attempt failed %s ago", schemaURL, time.Since(failedAt).Round(time.Second))
+	}
 
 	// The loader is needed for the unversioned schema, which only $refs the latest version
 	compiler := jsonschema.NewCompiler()
 	compiler.UseLoader(jsonschema.SchemeURLLoader{"https": schemaURLLoader{}})
 	schema, err := compiler.Compile(schemaURL)
 	if err != nil {
+		schemaFailures[schemaURL] = time.Now()
 		return nil, fmt.Errorf("load schema %s: %w", schemaURL, err)
 	}
+	delete(schemaFailures, schemaURL)
 	compiledSchemas[schemaURL] = schema
 	return schema, nil
 }
