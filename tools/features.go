@@ -7,10 +7,12 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/krakend/mcp-server/internal/features"
+	"github.com/krakend/mcp-server/tools/validation"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -30,6 +32,9 @@ type (
 var (
 	featureCatalog *features.FeatureCatalog
 	editionMatrix  *features.EditionMatrix
+
+	// loadSchema returns the compiled JSON schema for a config. It can be replaced in tests.
+	loadSchema = validation.LoadSchema
 )
 
 // DetectEnterpriseFeatures checks if config uses EE-only features
@@ -199,10 +204,12 @@ type CheckEditionCompatibilityInput struct {
 
 // CheckEditionCompatibilityOutput defines output for check_edition_compatibility tool
 type CheckEditionCompatibilityOutput struct {
-	Edition        string                 `json:"edition"`       // "ce", "ee", or "mixed"
-	EEFeatures     []string               `json:"ee_features"`   // List of EE-only features found
-	CECompatible   bool                   `json:"ce_compatible"` // True if config works with CE
-	RequiresEE     bool                   `json:"requires_ee"`   // True if config requires EE
+	Edition        string                 `json:"edition"`                   // "ce", "ee", or "mixed"
+	EEFeatures     []string               `json:"ee_features"`               // List of EE-only features found
+	EEAttributes   []string               `json:"ee_attributes,omitempty"`   // JSON paths the schema flags as Enterprise only
+	ReviewFeatures []string               `json:"review_features,omitempty"` // Shared namespaces that could not be checked against the schema
+	CECompatible   bool                   `json:"ce_compatible"`             // True if config works with CE
+	RequiresEE     bool                   `json:"requires_ee"`               // True if config requires EE
 	FeatureDetails []FeatureCompatibility `json:"feature_details"`
 	Message        string                 `json:"message"`
 	Hint           string                 `json:"hint,omitempty"`
@@ -230,8 +237,40 @@ func CheckEditionCompatibility(ctx context.Context, req *mcp.CallToolRequest, in
 		return nil, CheckEditionCompatibilityOutput{}, fmt.Errorf("invalid JSON: %w", err)
 	}
 
-	// Find all namespaces used in config
+	// The schema is checked for every namespace: shared namespaces need it to tell which
+	// edition a usage requires, and the matrix does not list every EE namespace
+	sharedSet := make(map[string]struct{}, len(editionMatrix.SharedFeatures))
+	for _, ns := range editionMatrix.SharedFeatures {
+		sharedSet[ns] = struct{}{}
+	}
+	extraConfigNamespaces := features.ExtraConfigNamespaces(config)
+
+	schemaEE := map[string]bool{}
+	var eeAttributes, reviewFeatures []string
+	if len(extraConfigNamespaces) > 0 {
+		schema, err := loadSchema(input.Config)
+		if err != nil {
+			log.Printf("Warning: could not load JSON schema for edition check: %v", err)
+			for _, ns := range extraConfigNamespaces {
+				if _, ok := sharedSet[ns]; ok {
+					reviewFeatures = append(reviewFeatures, ns)
+				}
+			}
+		} else {
+			for _, usage := range features.FindEnterpriseUsages(schema, config) {
+				schemaEE[usage.Namespace] = true
+				eeAttributes = append(eeAttributes, usage.Path)
+			}
+		}
+	}
+
+	// Find all namespaces used in config, including slash-less ones such as "proxy"
 	namespaces := features.FindNamespacesInConfig(config)
+	for _, ns := range extraConfigNamespaces {
+		if !slices.Contains(namespaces, ns) {
+			namespaces = append(namespaces, ns)
+		}
+	}
 
 	// Initialize as empty slices (not nil) to ensure JSON marshals as [] instead of null
 	eeFeatures := []string{}
@@ -240,23 +279,27 @@ func CheckEditionCompatibility(ctx context.Context, req *mcp.CallToolRequest, in
 
 	// Check each namespace against edition matrix
 	for _, ns := range namespaces {
-		isEEOnly := false
-		for _, eeNs := range editionMatrix.EEOnlyFeatures {
-			if ns == eeNs {
-				isEEOnly = true
-				requiresEE = true
-				eeFeatures = append(eeFeatures, ns)
-				break
-			}
+		_, isShared := sharedSet[ns]
+		isEEOnly := schemaEE[ns] || slices.Contains(editionMatrix.EEOnlyFeatures, ns)
+		if isEEOnly {
+			requiresEE = true
+			eeFeatures = append(eeFeatures, ns)
 		}
 
 		// Find feature details
 		for _, feature := range featureCatalog.Features {
 			if feature.Namespace == ns {
+				featureEdition := feature.Edition
+				if isShared {
+					featureEdition = "ce"
+					if isEEOnly {
+						featureEdition = "ee"
+					}
+				}
 				featureDetails = append(featureDetails, FeatureCompatibility{
 					Namespace: ns,
 					Name:      feature.Name,
-					Edition:   feature.Edition,
+					Edition:   featureEdition,
 					Available: !isEEOnly,
 				})
 				break
@@ -271,6 +314,9 @@ func CheckEditionCompatibility(ctx context.Context, req *mcp.CallToolRequest, in
 		message = fmt.Sprintf("Configuration requires Enterprise Edition (uses %d EE-only feature(s))", len(eeFeatures))
 		sessionRegistry.MarkAsEnterprise(sessionIdFromReq(req))
 	}
+	if len(reviewFeatures) > 0 {
+		message += fmt.Sprintf(". Could not check namespaces shared by CE and EE (%s) against the JSON schema, review their attributes manually", strings.Join(reviewFeatures, ", "))
+	}
 
 	var eeHint string
 	if len(eeFeatures) > 0 {
@@ -282,6 +328,8 @@ func CheckEditionCompatibility(ctx context.Context, req *mcp.CallToolRequest, in
 		EEFeatures:     eeFeatures,
 		CECompatible:   !requiresEE,
 		RequiresEE:     requiresEE,
+		EEAttributes:   eeAttributes,
+		ReviewFeatures: reviewFeatures,
 		FeatureDetails: featureDetails,
 		Message:        message,
 		Hint:           eeHint,

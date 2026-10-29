@@ -69,8 +69,10 @@ func parseRemoteYAML(data []byte) (*FeatureCatalog, *EditionMatrix, error) {
 	matrix := &EditionMatrix{
 		CEFeatures:     []string{},
 		EEOnlyFeatures: []string{},
+		SharedFeatures: []string{},
 		FeatureDetails: map[string]map[string]interface{}{},
 	}
+	eeNamespaces := []string{}
 
 	for _, section := range rm.Sections {
 		for _, rf := range section.Features {
@@ -96,11 +98,30 @@ func parseRemoteYAML(data []byte) (*FeatureCatalog, *EditionMatrix, error) {
 
 			for _, ns := range rf.Namespaces {
 				if rf.EE {
-					matrix.EEOnlyFeatures = append(matrix.EEOnlyFeatures, ns)
+					eeNamespaces = append(eeNamespaces, ns)
 				} else {
 					matrix.CEFeatures = append(matrix.CEFeatures, ns)
 				}
 			}
+		}
+	}
+
+	// A namespace used by any CE feature is not EE-only: whether a given usage
+	// requires EE depends on its attributes, which is resolved against the schema.
+	ceSet := make(map[string]struct{}, len(matrix.CEFeatures))
+	for _, ns := range matrix.CEFeatures {
+		ceSet[ns] = struct{}{}
+	}
+	seen := make(map[string]struct{}, len(eeNamespaces))
+	for _, ns := range eeNamespaces {
+		if _, dup := seen[ns]; dup {
+			continue
+		}
+		seen[ns] = struct{}{}
+		if _, shared := ceSet[ns]; shared {
+			matrix.SharedFeatures = append(matrix.SharedFeatures, ns)
+		} else {
+			matrix.EEOnlyFeatures = append(matrix.EEOnlyFeatures, ns)
 		}
 	}
 
