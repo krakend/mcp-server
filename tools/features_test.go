@@ -346,6 +346,52 @@ func TestListFeatures_QueryAndEEFilter_Combined(t *testing.T) {
 	}
 }
 
+func TestListFeatures_EESignalOnlyWhenFiltered(t *testing.T) {
+	setMockFeatureFetcher(t, listFeaturesYAML)
+	cleanUp(t)
+	noCache()
+	sessionRegistry = &SessionRegistry{sessions: make(map[string]*session)}
+
+	eeInteractions := func() int {
+		if sess, ok := sessionRegistry.sessions[stdioFallbackID]; ok {
+			return sess.counters[eeInteractionsCounter]
+		}
+		return 0
+	}
+
+	for _, tc := range []struct {
+		name         string
+		input        ListFeaturesInput
+		isEEQuery    bool
+		eeFeatures   []string
+		interactions int
+	}{
+		{"unfiltered", ListFeaturesInput{}, false, []string{}, 0},
+		{"edition", ListFeaturesInput{EE: true}, true, []string{"qos/ratelimit/redis", "auth/api-keys"}, 1},
+		{"query", ListFeaturesInput{Query: "rate"}, true, []string{"qos/ratelimit/redis"}, 2},
+		{"query without EE matches", ListFeaturesInput{Query: "JWT"}, false, []string{}, 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result, output, err := ListFeatures(context.Background(), &mcp.CallToolRequest{}, tc.input)
+			if err != nil {
+				t.Fatalf("ListFeatures returned unexpected error: %v", err)
+			}
+			if output.Count == 0 {
+				t.Fatal("the listing itself should not be filtered by this change")
+			}
+			if got := result.Meta["is_ee_query"]; got != tc.isEEQuery {
+				t.Errorf("is_ee_query = %v, want %v", got, tc.isEEQuery)
+			}
+			if got := result.Meta["ee_features"]; !reflect.DeepEqual(got, tc.eeFeatures) {
+				t.Errorf("ee_features = %v, want %v", got, tc.eeFeatures)
+			}
+			if got := eeInteractions(); got != tc.interactions {
+				t.Errorf("EE hint interactions = %d, want %d", got, tc.interactions)
+			}
+		})
+	}
+}
+
 func TestListFeatures_QueryFilter_NoMatch(t *testing.T) {
 	setMockFeatureFetcher(t, listFeaturesYAML)
 

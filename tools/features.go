@@ -147,6 +147,9 @@ func ListFeatures(ctx context.Context, req *mcp.CallToolRequest, input ListFeatu
 	}
 
 	query := strings.ToLower(input.Query)
+	// an unfiltered listing always includes every EE feature, so only a listing
+	// filtered by edition or query shows interest in them
+	filtered := input.EE || query != ""
 
 	eeOnlyFeatures := make([]string, 0)
 
@@ -161,7 +164,7 @@ func ListFeatures(ctx context.Context, req *mcp.CallToolRequest, input ListFeatu
 				continue
 			}
 		}
-		if feature.Edition == "ee" {
+		if filtered && feature.Edition == "ee" {
 			eeOnlyFeatures = append(eeOnlyFeatures, feature.Namespace)
 		}
 		summaries = append(summaries, FeatureSummary{
