@@ -81,7 +81,7 @@ KrakenD MCP Server runs as a **local MCP server** via stdio transport:
 - ✅ No network ports exposed
 - ✅ No remote access
 - ✅ Runs with your user permissions
-- ✅ No data leaves your machine (except outbound fetches to www.krakend.io for feature matrix and docs)
+- ✅ No data leaves your machine (except outbound fetches to www.krakend.io for feature matrix and docs, and the anonymous usage analytics sent to usage.krakend.io, described below)
 
 ### Data Privacy
 
@@ -96,17 +96,17 @@ KrakenD MCP Server runs as a **local MCP server** via stdio transport:
 **What it does NOT access:**
 - Your network traffic
 - Other system files (outside working directory)
-- Remote servers (except www.krakend.io for docs, listed above)
+- Remote servers (except www.krakend.io for docs, listed above, and usage.krakend.io for usage analytics, listed below)
 - Personal data
 
 **What it sends externally:**
-- Anonymous batched usage analytics; includes MCP method, tool name, session ID, duration, errors, MCP client name/version (e.g. `claude-code`), and tool-specific metadata (e.g. result counts, whether a query touched Enterprise Edition features). No configuration content, file paths, or query text is included. Disable with `USAGE_DISABLE=1`.
+- Anonymous batched usage analytics sent to `https://usage.krakend.io`; includes a random installation ID (stored in `~/.krakend-mcp/.id`), server version, OS and architecture, MCP method, tool name, session ID, duration, errors, MCP client name/version (e.g. `claude-code`), and tool-specific metadata (e.g. result counts, whether a query touched Enterprise Edition features). No configuration content, file paths, or query text is included. Disable with `USAGE_DISABLE=1`.
 
 ### File System Access
 
 The MCP server operates with your user's file permissions:
 - **Read access**: Configuration files in current working directory
-- **Write access**: `data/` directory for cache and search index
+- **Write access**: `~/.krakend-mcp/` for cache, search index, installation ID and hint cooldowns (cache and search index fall back to a `data/` directory when the home folder is not writable)
 - **No elevated privileges**: Runs as your user, no sudo/admin required
 
 ### Validation via Docker
