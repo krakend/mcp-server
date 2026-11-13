@@ -64,7 +64,7 @@ mkdir -p ~/.krakend-mcp/{docs,search}
 
 **🌟 Best Experience**: Use the [KrakenD AI Assistant plugin](https://github.com/krakend/claude-code-plugin) for:
 - ✅ Automatic binary management
-- ✅ 4 proactive Skills (auto-activate)
+- ✅ 5 proactive Skills (auto-activate)
 - ✅ 1 Architecture Agent
 - ✅ Zero configuration
 
@@ -85,21 +85,13 @@ If you only want the MCP tools without Skills/Agent:
 
 1. Download the binary (see Quick Start above)
 
-2. Create or edit `~/.claude/mcp_settings.json`:
-```json
-{
-  "mcpServers": {
-    "krakend": {
-      "type": "stdio",
-      "command": "/usr/local/bin/krakend-mcp-server",
-      "args": [],
-      "description": "KrakenD configuration validation and assistance"
-    }
-  }
-}
+2. Register the server with the Claude Code CLI:
+```bash
+claude mcp add -s user krakend -- /usr/local/bin/krakend-mcp-server
 ```
+`-s user` makes it available in all your projects. Drop it to register the server only for the current project, or use `-s project` to share it with your team through a `.mcp.json` file.
 
-3. Restart Claude Code
+3. Restart Claude Code and check the server is connected with `/mcp`
 
 **Tools available**: All 7 MCP tools (validate, audit, features, search docs, etc.)
 
