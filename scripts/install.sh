@@ -13,7 +13,7 @@
 set -e
 
 # Latest version (update on each release)
-VERSION="0.8.1"
+VERSION="0.8.2"
 
 # Installation directory (to be determined by determine_install_dir)
 INSTALL_DIR=""
