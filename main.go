@@ -180,7 +180,15 @@ func registerTools(server *mcp.Server) error {
 	}
 	toolCount += 2
 
-	log.Printf("✓ All tools registered: %d tools (validation + runtime + features + doc search)", toolCount)
+	// Observability tools (4 tools): metrics catalog, metrics a config exposes, dashboard PromQL
+	// recipes, dashboard linter
+	if err := tools.RegisterObservabilityTools(server); err != nil {
+		log.Printf("Warning: Failed to register observability tools: %v", err)
+	} else {
+		toolCount += 4
+	}
+
+	log.Printf("✓ All tools registered: %d tools (validation + runtime + features + doc search + observability)", toolCount)
 	return nil
 }
 

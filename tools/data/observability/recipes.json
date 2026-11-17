@@ -1,0 +1,4429 @@
+{
+  "_about": "GENERATED from observability/promql-recipes.md and observability/blueprints.md by cmd/observability-recipes. Do not edit by hand.",
+  "krakend_version": "KrakenD EE 3.0",
+  "placeholders": {
+    "SEL": "job=~\"$job\", instance=~\"$instance\", http_route=~\"$endpoint\"",
+    "BSEL": "job=~\"$job\", instance=~\"$instance\", krakend_endpoint_route=~\"$endpoint\", krakend_endpoint_route!=\"\"",
+    "J": "job=~\"$job\", instance=~\"$instance\""
+  },
+  "section_notes": {
+    "Errors": "Error recipes are written to show **0, not \"No data\"**, before the first error: stats use\n`or vector(0)`, per-endpoint ratios fall back to `0 * <traffic>`. Keep that pattern for new error\npanels. A gateway that hasn't failed yet should still get its error dashboard.\n`errors.partial_responses` matters for aggregation endpoints: `complete=\"false\"` means at least\none backend failed and the client got a degraded, merged response.",
+    "Latency": "Use `histogram_quantile` over `sum by (le, ...)`. Never average quantiles.\nDefault `le` boundaries in 3.0.1 (seconds): 0.01, 0.02, 0.05, 0.075, 0.1, 0.125, 0.15, 0.175,\n0.2, 0.25, 0.3, 0.35, 0.5, 0.75, 1.0, 1.5, 2.0, 3.5, 5.0, 10.0. An SLO threshold must be one of\nthem. Write the string exactly as Prometheus does (`le=\"1.0\"`, not `le=\"1\"`). Confirm with\n`list_prometheus_label_values(labelName=\"le\", matches=http_server_duration_bucket)`.",
+    "\"Where is the time spent?\" (layer breakdown)": "The signature KrakenD view: one panel, four targets, **one endpoint**. Use **averages**\n(`_sum / _count`), not percentiles. Layer differences are often below a millisecond, and\nhistogram percentiles are interpolated inside buckets (0.2-0.25 s, ...), so every layer gets\nthe same p95 and the lines stack on top of each other. Averages are exact.\nRead it as: total - proxy \u2248 router work (auth, validation, rate limiting, security);\nproxy - slowest backend \u2248 aggregation/manipulation; backend - round trip \u2248 decoding/filtering.\n`max(... by (http_route))` matters. Backends of an aggregated endpoint run in parallel, so the\nslowest one sets the time. A plain average across backends halves it on a 2-backend endpoint.\nA `stat` panel with `layers.gateway_overhead` in ms makes a strong demo line (\"KrakenD adds 0.2 ms\").\n**Only use this for ONE endpoint.** Each layer measures a different set of requests: 404s,\nrate-limited and auth-rejected requests never reach the proxy or the backends. With\n`$endpoint = All`, the proxy line can sit *above* the total line. Pin the panel to one endpoint\n(`http_route=\"/orders\"` and `krakend_endpoint_route=\"/orders\"`), or repeat it per endpoint with\n`\"repeat\": \"endpoint\"`.\nFor tail latency of a single layer, the p95 versions (`histogram_quantile(0.95, sum by (le) (rate(<metric>_bucket{...}[$__rate_interval])))`)\nare fine. Just don't put several layers' p95 on one panel to compare them.",
+    "Backends": "DNS/conn series only produce points when new connections are opened. An empty result\nduring steady traffic is normal (keep-alive). Say so in the panel description instead of\ndropping the panel if the user asked for it.",
+    "Resilience (EE)": "A breaker that stays down shows a single `close_to_open` and then a steady stream of\n`open_to_half` + `half_to_open` (each failed probe). Counting only `close_to_open` reports\n\"0 trips\" while the backend is fully cut off. Always include `half_to_open`.\nThere is no dedicated rate-limit metric. Get the list of rate-limited endpoints and their\nrejection status (default 503, or `status_code` override if any) from the KrakenD config, and filter\n`http_route` to those endpoints. Label the panel \"Rejected by rate limit (inferred)\".",
+    "Quotas (EE)": "`governance/quota` has no dedicated metric: a request over its quota gets **429**, so rejections\nare `http_server_duration_count` with status 429 on the endpoints that have a quota. With the\nconfig, the recipes are restricted to those endpoints; without it, every 429 counts.",
+    "AI gateway (EE)": "`J = job=~\"$job\", instance=~\"$instance\"`. These metrics have no endpoint label, except the prompt guard.\nCost: tokens \u00d7 price. If the user gives prices, multiply in PromQL per model\n(`sum by (model) (increase(krakend_llm_tokens_in_total{J}[$__range])) * on (model) group_left ...`\nis overkill). Prefer one stat per model with a constant multiplier, e.g.\n`sum(increase(krakend_llm_tokens_in_total{J, model=\"gpt-5-nano\"}[$__range])) * 0.00000005`, unit `currencyUSD`.\nBlocked prompts return 500 to clients. On AI endpoints, explain that in the error panel description.",
+    "WebSocket (EE)": "`ws.open_sessions` is approximate: counters reset when KrakenD restarts, which can push the\ndifference below zero for a while. Server-side metrics have no endpoint label.",
+    "Async agents (EE)": "Agents consume messages (`async/amqp`, `async/kafka`) and call their backends without an HTTP\nrequest, so they have **no `http_server_*` series**. Each message shows up as:\n- `krakend_proxy_duration{http_route=\"<agent name>\"}` **without `http_request_method`** (endpoints\n  always have it): one count per message processed.\n- `krakend_backend_duration` / `http_client_*` with `http_route=<backend url_pattern>` and **no\n  `krakend_endpoint_route`**.\nThe recipes select agents with `http_request_method=\"\"` (proxy) and `krakend_endpoint_route=\"\"`\n(backends), so they never mix with endpoints. Put them in their own row, and don't filter them with\n`$endpoint` (agent names aren't endpoints). Kafka agents also emit `messaging_*` with\n`messaging_origin=\"asyncagent\"`: use `kafka.consumed_by_origin` and `kafka.ack_avg_by_origin`.",
+    "Kafka messaging (EE)": "Failures are **histograms** (`messaging_*_failure_count_seconds`: how long the failing call took);\ncount them with `_count`. They only appear after the first failure.\nOnly Kafka backends emit these. NATS/SQS pubsub and AMQP endpoints are only visible through the\nHTTP layer metrics of their endpoints.",
+    "Redis connection pools (EE)": "Used by Redis rate limits, quotas and semantic cache. `pool_name` is the Redis address.\n`hits`, `misses`, `waits` and `timeouts` are cumulative values exported as **gauges**. Use\n`delta`/`deriv`, never `rate`. Command latency is in **milliseconds**, unlike everything else.",
+    "Runtime": "Go runtime (`go_*`, needs `go_metrics`) and process (`process_*`, needs `process_metrics`) metrics,\none series per node. **Check the type before using `rate()`:** `go_memstats_*_bytes`,\n`go_memstats_heap_objects`, `go_goroutines`, `go_threads` and `process_open_fds` are gauges (use\nthem as they are, or `avg_over_time`/`max_over_time`); only `*_total` are counters.\n`go_gc_duration_seconds` is a summary: the `quantile` label holds pause quantiles of recent\ncycles, `rate(_count)` is GCs per second and `rate(_sum)` is the fraction of time stopped for GC.\nPer-node panels group `by (instance)`; with several targets on one panel, pin it to one node or\nrepeat it per `instance`.\nGoroutines track open connections: each in-flight request, keep-alive client and backend\nconnection holds at least one. A goroutine count that keeps growing while traffic is flat is a leak\nor stuck backends; compare it with `backends.conn_pool_wait_p95` and timeouts.\n`runtime.memory_limit_usage` only shows data when the container sets `GOMEMLIMIT`, and\n`runtime.network_io` only on Linux. Keep both even if this environment shows nothing: production\noften differs (see \"Panels that depend on where KrakenD runs\" in `dashboard-conventions.md`)."
+  },
+  "blueprints": {
+    "overview": {
+      "rows": [
+        {
+          "title": "Stats",
+          "recipes": [
+            "traffic.requests_in_range",
+            "traffic.rps_avg_in_range",
+            "latency.avg_in_range",
+            "latency.percentiles_in_range",
+            "errors.ratio_5xx",
+            "errors.ratio_4xx",
+            "runtime.nodes_up",
+            "errors.status_split_in_range"
+          ],
+          "optional": false
+        },
+        {
+          "title": "Traffic",
+          "recipes": [
+            "traffic.rps_by_endpoint",
+            "traffic.rps_by_status",
+            "traffic.not_found_rate"
+          ],
+          "optional": false
+        },
+        {
+          "title": "Latency",
+          "recipes": [
+            "latency.p50/p95/p99",
+            "latency.p95_by_endpoint",
+            "latency.avg_by_endpoint",
+            "latency.slowest_endpoints",
+            "latency.heatmap"
+          ],
+          "optional": false
+        },
+        {
+          "title": "Errors",
+          "recipes": [
+            "errors.ratio_5xx_by_endpoint",
+            "errors.non2xx_by_endpoint_in_range",
+            "errors.backend_failed_calls",
+            "errors.backend_timeouts"
+          ],
+          "optional": false
+        },
+        {
+          "title": "Backends",
+          "recipes": [
+            "backends.rps_by_backend",
+            "latency.backend_host_p95",
+            "errors.backend_status_codes"
+          ],
+          "optional": false
+        },
+        {
+          "title": "Resilience",
+          "recipes": [
+            "cb.opened_in_range",
+            "cb.transitions",
+            "ratelimit.rejections"
+          ],
+          "optional": true
+        },
+        {
+          "title": "Quotas",
+          "recipes": [
+            "quota.rejected_in_range",
+            "quota.rejection_ratio"
+          ],
+          "optional": true
+        },
+        {
+          "title": "Async agents",
+          "recipes": [
+            "agents.messages_rate",
+            "agents.error_ratio",
+            "agents.processing_p95",
+            "agents.backend_status"
+          ],
+          "optional": true
+        },
+        {
+          "title": "Kafka",
+          "recipes": [
+            "kafka.published_rate",
+            "kafka.consumed_rate",
+            "kafka.failures",
+            "kafka.publish_p95"
+          ],
+          "optional": true
+        },
+        {
+          "title": "AI",
+          "recipes": [
+            "ai.tokens_rate_by_model",
+            "ai.tokens_in_range",
+            "ai.guard_block_ratio"
+          ],
+          "optional": true
+        },
+        {
+          "title": "WebSocket",
+          "recipes": [
+            "ws.open_sessions",
+            "ws.msgs_in_rate",
+            "ws.msgs_out_rate"
+          ],
+          "optional": true
+        },
+        {
+          "title": "Redis",
+          "recipes": [
+            "redis.pool_saturation",
+            "redis.cmd_p95",
+            "redis.timeouts"
+          ],
+          "optional": true
+        },
+        {
+          "title": "Runtime",
+          "recipes": [
+            "runtime.cpu",
+            "runtime.rss",
+            "runtime.goroutines"
+          ],
+          "optional": false
+        }
+      ],
+      "notes": "Optional rows go after Backends, only when the config enables them; without a config they are left out."
+    },
+    "runtime": {
+      "rows": [
+        {
+          "title": "Stats",
+          "recipes": [
+            "runtime.nodes_up",
+            "runtime.uptime",
+            "runtime.restarts",
+            "runtime.memory_avg_in_range",
+            "runtime.gomaxprocs",
+            "runtime.gogc",
+            "runtime.cpu_saturation",
+            "runtime.fd_usage",
+            "runtime.memory_limit_usage"
+          ],
+          "optional": false
+        },
+        {
+          "title": "CPU & scheduling",
+          "recipes": [
+            "runtime.cpu",
+            "runtime.goroutines",
+            "runtime.threads"
+          ],
+          "optional": false
+        },
+        {
+          "title": "Memory",
+          "recipes": [
+            "runtime.rss",
+            "runtime.memory_breakdown",
+            "runtime.heap_vs_gc_target",
+            "runtime.heap_objects"
+          ],
+          "optional": false
+        },
+        {
+          "title": "Allocations & GC",
+          "recipes": [
+            "runtime.alloc_rate",
+            "runtime.mallocs_frees",
+            "runtime.gc_rate",
+            "runtime.gc_time_fraction",
+            "runtime.gc_pause_quantiles"
+          ],
+          "optional": false
+        },
+        {
+          "title": "Process",
+          "recipes": [
+            "runtime.open_fds",
+            "runtime.network_io",
+            "runtime.go_version"
+          ],
+          "optional": false
+        },
+        {
+          "title": "Traffic",
+          "recipes": [
+            "traffic.rps_total"
+          ],
+          "optional": false
+        }
+      ],
+      "notes": "Needs `go_metrics` / `process_metrics`. The traffic panel is context, to read memory and CPU against load. With several nodes, repeat the rows per node (`\"repeat\": \"instance\"`) when the user wants them side by side. `runtime.network_io` is Linux only and `runtime.memory_limit_usage` needs `GOMEMLIMIT`: keep both, production usually has them."
+    },
+    "backends": {
+      "rows": [
+        {
+          "title": "Stats",
+          "recipes": [
+            "errors.backend_failed_in_range",
+            "backends.slowest"
+          ],
+          "optional": false
+        },
+        {
+          "title": "Throughput",
+          "recipes": [
+            "backends.rps_by_backend",
+            "backends.started_vs_canceled"
+          ],
+          "optional": false
+        },
+        {
+          "title": "Latency",
+          "recipes": [
+            "backends.avg_by_backend",
+            "latency.backend_host_p95",
+            "latency.backend_heatmap"
+          ],
+          "optional": false
+        },
+        {
+          "title": "Failures",
+          "recipes": [
+            "errors.backend_status_codes",
+            "errors.backend_timeouts",
+            "errors.backend_transport_failures",
+            "errors.backend_canceled"
+          ],
+          "optional": false
+        },
+        {
+          "title": "Connections",
+          "recipes": [
+            "backends.connection_setup_avg",
+            "backends.conn_pool_wait_p95",
+            "backends.dns_p95",
+            "backends.tls_p95"
+          ],
+          "optional": false
+        },
+        {
+          "title": "Payload",
+          "recipes": [
+            "backends.response_size_avg",
+            "backends.ingress_bytes",
+            "backends.no_content_length"
+          ],
+          "optional": false
+        }
+      ],
+      "notes": ""
+    },
+    "agents": {
+      "rows": [
+        {
+          "title": "Stats",
+          "recipes": [
+            "agents.messages_in_range",
+            "agents.error_ratio"
+          ],
+          "optional": false
+        },
+        {
+          "title": "Messages",
+          "recipes": [
+            "agents.messages_rate",
+            "agents.backend_failures"
+          ],
+          "optional": false
+        },
+        {
+          "title": "Processing time",
+          "recipes": [
+            "agents.processing_p95",
+            "agents.processing_avg"
+          ],
+          "optional": false
+        },
+        {
+          "title": "Backend",
+          "recipes": [
+            "agents.backend_p95",
+            "agents.backend_status"
+          ],
+          "optional": false
+        }
+      ],
+      "notes": "Never filter agent panels with `$endpoint`: agent names are not endpoints."
+    }
+  },
+  "recipes": [
+    {
+      "id": "traffic.rps_total",
+      "section": "Traffic",
+      "intents": [
+        "traffic",
+        "runtime"
+      ],
+      "title": "Requests / s",
+      "panel": "stat",
+      "unit": "reqps",
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_duration_count{SEL}[$__rate_interval]))",
+          "legend": "Requests / s"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_server_duration_count"
+        ],
+        "groups": [
+          "global"
+        ]
+      },
+      "alt_panels": [
+        "timeseries"
+      ]
+    },
+    {
+      "id": "traffic.rps_by_endpoint",
+      "section": "Traffic",
+      "intents": [
+        "traffic",
+        "overview"
+      ],
+      "title": "Requests / s by endpoint",
+      "panel": "timeseries",
+      "unit": "reqps",
+      "targets": [
+        {
+          "expr": "sum by (http_route) (rate(http_server_duration_count{SEL, http_route!=\"404 Not Found\"}[$__rate_interval]))",
+          "legend": "{{http_route}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_server_duration_count"
+        ],
+        "groups": [
+          "global"
+        ]
+      }
+    },
+    {
+      "id": "traffic.rps_by_status",
+      "section": "Traffic",
+      "intents": [
+        "traffic",
+        "overview"
+      ],
+      "title": "Requests / s by status",
+      "panel": "timeseries",
+      "unit": "reqps",
+      "targets": [
+        {
+          "expr": "sum by (http_response_status_code) (rate(http_server_duration_count{SEL}[$__rate_interval]))",
+          "legend": "{{http_response_status_code}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_server_duration_count"
+        ],
+        "groups": [
+          "global"
+        ]
+      },
+      "notes": "(all requests, including unknown paths answered with 404 Not Found; the error ratios and latency panels leave those out)",
+      "stacked": true
+    },
+    {
+      "id": "traffic.requests_in_range",
+      "section": "Traffic",
+      "intents": [
+        "traffic",
+        "overview"
+      ],
+      "title": "Requests",
+      "panel": "stat",
+      "unit": "short",
+      "targets": [
+        {
+          "expr": "sum(increase(http_server_duration_count{SEL}[$__range]))",
+          "legend": "Requests"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_server_duration_count"
+        ],
+        "groups": [
+          "global"
+        ]
+      },
+      "notes": "(all requests, including unknown paths answered with 404 Not Found; the error ratios and latency panels leave those out)"
+    },
+    {
+      "id": "traffic.top_endpoints",
+      "section": "Traffic",
+      "intents": [
+        "traffic"
+      ],
+      "title": "Busiest endpoints",
+      "panel": "bargauge",
+      "unit": "short",
+      "targets": [
+        {
+          "expr": "topk(10, sum by (http_route) (increase(http_server_duration_count{SEL, http_route!=\"404 Not Found\"}[$__range])))",
+          "legend": "{{http_route}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_server_duration_count"
+        ],
+        "groups": [
+          "global"
+        ]
+      },
+      "alt_panels": [
+        "table"
+      ]
+    },
+    {
+      "id": "traffic.not_found_rate",
+      "section": "Traffic",
+      "intents": [
+        "traffic",
+        "overview"
+      ],
+      "title": "404 Not Found / s",
+      "panel": "stat",
+      "unit": "reqps",
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_duration_count{job=~\"$job\", instance=~\"$instance\", http_route=\"404 Not Found\"}[$__rate_interval]))",
+          "legend": "404 Not Found / s"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_server_duration_count"
+        ],
+        "groups": [
+          "global"
+        ]
+      },
+      "alt_panels": [
+        "timeseries"
+      ]
+    },
+    {
+      "id": "traffic.egress_bytes",
+      "section": "Traffic",
+      "intents": [
+        "traffic"
+      ],
+      "title": "Bytes sent to clients",
+      "panel": "timeseries",
+      "unit": "Bps",
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_response_size_sum{SEL}[$__rate_interval]))",
+          "legend": "Bytes sent to clients"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_server_response_size_sum"
+        ],
+        "groups": [
+          "global"
+        ]
+      }
+    },
+    {
+      "id": "traffic.rps_avg_in_range",
+      "section": "Traffic",
+      "intents": [
+        "traffic",
+        "overview"
+      ],
+      "title": "Avg requests / s",
+      "panel": "stat",
+      "unit": "reqps",
+      "targets": [
+        {
+          "expr": "sum(increase(http_server_duration_count{SEL}[$__range])) / $__range_s",
+          "legend": "Avg requests / s"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_server_duration_count"
+        ],
+        "groups": [
+          "global"
+        ]
+      },
+      "notes": "(all requests, including unknown paths answered with 404 Not Found; the error ratios and latency panels leave those out)"
+    },
+    {
+      "id": "traffic.response_size_avg_by_endpoint",
+      "section": "Traffic",
+      "intents": [
+        "traffic"
+      ],
+      "title": "Avg response size by endpoint",
+      "panel": "bargauge",
+      "unit": "bytes",
+      "targets": [
+        {
+          "expr": "sum by (http_route) (increase(http_server_response_size_sum{SEL, http_route!=\"404 Not Found\"}[$__range])) / sum by (http_route) (increase(http_server_response_size_count{SEL, http_route!=\"404 Not Found\"}[$__range]))",
+          "legend": "{{http_route}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_server_response_size_count",
+          "http_server_response_size_sum"
+        ],
+        "groups": [
+          "global"
+        ]
+      },
+      "alt_panels": [
+        "table"
+      ]
+    },
+    {
+      "id": "traffic.response_size_p95",
+      "section": "Traffic",
+      "intents": [
+        "traffic"
+      ],
+      "title": "Response size p95",
+      "panel": "timeseries",
+      "unit": "bytes",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_response_size_bucket{SEL}[$__rate_interval])))",
+          "legend": "p95"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_server_response_size_bucket"
+        ],
+        "groups": [
+          "global"
+        ]
+      }
+    },
+    {
+      "id": "traffic.response_size_heatmap",
+      "section": "Traffic",
+      "intents": [
+        "traffic"
+      ],
+      "title": "Response size heatmap",
+      "panel": "heatmap",
+      "unit": "bytes",
+      "targets": [
+        {
+          "expr": "sum by (le) (increase(http_server_response_size_bucket{SEL}[$__rate_interval]))",
+          "legend": "Response size heatmap"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_server_response_size_bucket"
+        ],
+        "groups": [
+          "global"
+        ]
+      }
+    },
+    {
+      "id": "errors.ratio_5xx",
+      "section": "Errors",
+      "intents": [
+        "errors",
+        "overview"
+      ],
+      "title": "5xx ratio",
+      "panel": "stat",
+      "unit": "percentunit",
+      "targets": [
+        {
+          "expr": "(sum(rate(http_server_duration_count{SEL, http_route!=\"404 Not Found\", http_response_status_code=~\"5..\"}[$__rate_interval])) or vector(0)) / sum(rate(http_server_duration_count{SEL, http_route!=\"404 Not Found\"}[$__rate_interval]))",
+          "legend": "5xx ratio"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_server_duration_count"
+        ],
+        "groups": [
+          "global"
+        ]
+      },
+      "thresholds": [
+        {
+          "color": "green",
+          "value": null
+        },
+        {
+          "color": "orange",
+          "value": 0.01
+        },
+        {
+          "color": "red",
+          "value": 0.05
+        }
+      ]
+    },
+    {
+      "id": "errors.ratio_5xx_by_endpoint",
+      "section": "Errors",
+      "intents": [
+        "errors",
+        "overview"
+      ],
+      "title": "5xx ratio by endpoint",
+      "panel": "timeseries",
+      "unit": "percentunit",
+      "targets": [
+        {
+          "expr": "(sum by (http_route) (rate(http_server_duration_count{SEL, http_route!=\"404 Not Found\", http_response_status_code=~\"5..\"}[$__rate_interval])) or 0 * sum by (http_route) (rate(http_server_duration_count{SEL, http_route!=\"404 Not Found\"}[$__rate_interval]))) / sum by (http_route) (rate(http_server_duration_count{SEL, http_route!=\"404 Not Found\"}[$__rate_interval]))",
+          "legend": "{{http_route}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_server_duration_count"
+        ],
+        "groups": [
+          "global"
+        ]
+      },
+      "alt_panels": [
+        "table"
+      ]
+    },
+    {
+      "id": "errors.ratio_4xx",
+      "section": "Errors",
+      "intents": [
+        "errors",
+        "overview"
+      ],
+      "title": "4xx ratio",
+      "panel": "stat",
+      "unit": "percentunit",
+      "targets": [
+        {
+          "expr": "(sum(rate(http_server_duration_count{SEL, http_route!=\"404 Not Found\", http_response_status_code=~\"4..\"}[$__rate_interval])) or vector(0)) / sum(rate(http_server_duration_count{SEL, http_route!=\"404 Not Found\"}[$__rate_interval]))",
+          "legend": "4xx ratio"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_server_duration_count"
+        ],
+        "groups": [
+          "global"
+        ]
+      },
+      "thresholds": [
+        {
+          "color": "green",
+          "value": null
+        },
+        {
+          "color": "orange",
+          "value": 0.05
+        },
+        {
+          "color": "red",
+          "value": 0.2
+        }
+      ],
+      "notes": "(requests to the config's endpoints; unknown paths are counted in the \"404 Not Found / s\" panel)"
+    },
+    {
+      "id": "errors.status_split_in_range",
+      "section": "Errors",
+      "intents": [
+        "errors",
+        "overview"
+      ],
+      "title": "Responses by status",
+      "panel": "piechart",
+      "unit": "short",
+      "targets": [
+        {
+          "expr": "sum by (http_response_status_code) (increase(http_server_duration_count{SEL}[$__range]))",
+          "legend": "{{http_response_status_code}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_server_duration_count"
+        ],
+        "groups": [
+          "global"
+        ]
+      },
+      "notes": "(all requests, including unknown paths answered with 404 Not Found; the error ratios and latency panels leave those out)"
+    },
+    {
+      "id": "errors.non2xx_by_endpoint_in_range",
+      "section": "Errors",
+      "intents": [
+        "errors",
+        "overview"
+      ],
+      "title": "Non-2xx responses by endpoint",
+      "panel": "table",
+      "unit": "short",
+      "targets": [
+        {
+          "expr": "sum by (http_route, http_response_status_code) (increase(http_server_duration_count{SEL, http_route!=\"404 Not Found\", http_response_status_code!~\"2..\"}[$__range]))",
+          "legend": "{{http_route}} {{http_response_status_code}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_server_duration_count"
+        ],
+        "groups": [
+          "global"
+        ]
+      },
+      "notes": "(which endpoint returns which error code, in the time range)"
+    },
+    {
+      "id": "errors.backend_failed_calls",
+      "section": "Errors",
+      "intents": [
+        "errors",
+        "overview"
+      ],
+      "title": "Failed backend calls / s",
+      "panel": "timeseries",
+      "unit": "reqps",
+      "targets": [
+        {
+          "expr": "sum by (krakend_endpoint_route, http_route) (rate(krakend_backend_duration_count{BSEL, error=\"true\"}[$__rate_interval])) or 0 * sum by (krakend_endpoint_route, http_route) (rate(krakend_backend_duration_count{BSEL}[$__rate_interval]))",
+          "legend": "{{krakend_endpoint_route}} {{http_route}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "krakend_backend_duration_count"
+        ],
+        "groups": [
+          "backend"
+        ]
+      }
+    },
+    {
+      "id": "errors.backend_failed_in_range",
+      "section": "Errors",
+      "intents": [
+        "errors",
+        "backends"
+      ],
+      "title": "Failed backend calls",
+      "panel": "stat",
+      "unit": "short",
+      "targets": [
+        {
+          "expr": "sum(increase(krakend_backend_duration_count{BSEL, error=\"true\"}[$__range])) or vector(0)",
+          "legend": "Failed backend calls"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "krakend_backend_duration_count"
+        ],
+        "groups": [
+          "backend"
+        ]
+      },
+      "thresholds": [
+        {
+          "color": "green",
+          "value": null
+        },
+        {
+          "color": "red",
+          "value": 0.001
+        }
+      ]
+    },
+    {
+      "id": "errors.backend_status_codes",
+      "section": "Errors",
+      "intents": [
+        "errors",
+        "overview",
+        "backends"
+      ],
+      "title": "Backend responses by status",
+      "panel": "timeseries",
+      "unit": "reqps",
+      "targets": [
+        {
+          "expr": "sum by (server_address, http_response_status_code) (rate(http_client_duration_count{BSEL, server_address=~\"$backend_host\"}[$__rate_interval]))",
+          "legend": "{{server_address}} {{http_response_status_code}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_client_duration_count"
+        ],
+        "groups": [
+          "backend-roundtrip"
+        ]
+      },
+      "stacked": true
+    },
+    {
+      "id": "errors.backend_timeouts",
+      "section": "Errors",
+      "intents": [
+        "errors",
+        "overview",
+        "backends"
+      ],
+      "title": "Backend timeouts / s",
+      "panel": "timeseries",
+      "unit": "reqps",
+      "targets": [
+        {
+          "expr": "sum by (krakend_endpoint_route, http_route) (rate(http_client_request_timedout_count_total{BSEL}[$__rate_interval])) or 0 * sum by (krakend_endpoint_route, http_route) (rate(http_client_duration_count{BSEL, server_address=~\"$backend_host\"}[$__rate_interval]))",
+          "legend": "{{krakend_endpoint_route}} {{http_route}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_client_duration_count",
+          "http_client_request_timedout_count_total"
+        ],
+        "groups": [
+          "backend-roundtrip"
+        ]
+      },
+      "may_be_empty": true,
+      "may_be_empty_reason": "http_client_request_timedout_count_total is only exported after the first event"
+    },
+    {
+      "id": "errors.backend_transport_failures",
+      "section": "Errors",
+      "intents": [
+        "errors",
+        "backends"
+      ],
+      "title": "Backend transport failures / s",
+      "panel": "timeseries",
+      "unit": "reqps",
+      "targets": [
+        {
+          "expr": "sum by (server_address) (rate(http_client_request_failed_count_total{BSEL, server_address=~\"$backend_host\"}[$__rate_interval])) or 0 * sum by (server_address) (rate(http_client_duration_count{BSEL, server_address=~\"$backend_host\"}[$__rate_interval]))",
+          "legend": "{{server_address}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_client_duration_count",
+          "http_client_request_failed_count_total"
+        ],
+        "groups": [
+          "backend-roundtrip"
+        ]
+      },
+      "may_be_empty": true,
+      "may_be_empty_reason": "http_client_request_failed_count_total is only exported after the first event"
+    },
+    {
+      "id": "errors.partial_responses",
+      "section": "Errors",
+      "intents": [
+        "errors"
+      ],
+      "title": "Partial responses / s",
+      "panel": "timeseries",
+      "unit": "reqps",
+      "targets": [
+        {
+          "expr": "sum by (http_route) (rate(krakend_proxy_duration_count{SEL, http_request_method!=\"\", complete=\"false\"}[$__rate_interval])) or 0 * sum by (http_route) (rate(krakend_proxy_duration_count{SEL, http_request_method!=\"\"}[$__rate_interval]))",
+          "legend": "{{http_route}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "krakend_proxy_duration_count"
+        ],
+        "groups": [
+          "proxy"
+        ]
+      }
+    },
+    {
+      "id": "errors.proxy_errors",
+      "section": "Errors",
+      "intents": [
+        "errors"
+      ],
+      "title": "Responses with a failed backend / s",
+      "panel": "timeseries",
+      "unit": "reqps",
+      "targets": [
+        {
+          "expr": "sum by (http_route) (rate(krakend_proxy_duration_count{SEL, http_request_method!=\"\", error=\"true\"}[$__rate_interval])) or 0 * sum by (http_route) (rate(krakend_proxy_duration_count{SEL, http_request_method!=\"\"}[$__rate_interval]))",
+          "legend": "{{http_route}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "krakend_proxy_duration_count"
+        ],
+        "groups": [
+          "proxy"
+        ]
+      },
+      "notes": "(at least one backend failed; with a single backend the whole response failed)"
+    },
+    {
+      "id": "errors.backend_canceled",
+      "section": "Errors",
+      "intents": [
+        "errors",
+        "backends"
+      ],
+      "title": "Canceled backend calls / s",
+      "panel": "timeseries",
+      "unit": "reqps",
+      "targets": [
+        {
+          "expr": "sum by (krakend_endpoint_route, server_address) (rate(http_client_request_canceled_count_total{BSEL}[$__rate_interval])) or 0 * sum by (krakend_endpoint_route, server_address) (rate(http_client_duration_count{BSEL, server_address=~\"$backend_host\"}[$__rate_interval]))",
+          "legend": "{{krakend_endpoint_route}} {{server_address}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_client_duration_count",
+          "http_client_request_canceled_count_total"
+        ],
+        "groups": [
+          "backend-roundtrip"
+        ]
+      },
+      "notes": "(the client left or the endpoint timeout fired first)",
+      "may_be_empty": true,
+      "may_be_empty_reason": "http_client_request_canceled_count_total is only exported after the first event"
+    },
+    {
+      "id": "latency.p50/p95/p99",
+      "section": "Latency",
+      "intents": [
+        "latency",
+        "overview"
+      ],
+      "title": "Latency p50 / p95 / p99",
+      "panel": "timeseries",
+      "unit": "s",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(http_server_duration_bucket{SEL, http_route!=\"404 Not Found\"}[$__rate_interval])))",
+          "legend": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_duration_bucket{SEL, http_route!=\"404 Not Found\"}[$__rate_interval])))",
+          "legend": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_duration_bucket{SEL, http_route!=\"404 Not Found\"}[$__rate_interval])))",
+          "legend": "p99"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_server_duration_bucket"
+        ],
+        "groups": [
+          "global"
+        ]
+      }
+    },
+    {
+      "id": "latency.p95_by_endpoint",
+      "section": "Latency",
+      "intents": [
+        "latency",
+        "overview"
+      ],
+      "title": "p95 latency by endpoint",
+      "panel": "timeseries",
+      "unit": "s",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, http_route) (rate(http_server_duration_bucket{SEL, http_route!=\"404 Not Found\"}[$__rate_interval])))",
+          "legend": "{{http_route}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_server_duration_bucket"
+        ],
+        "groups": [
+          "global"
+        ]
+      }
+    },
+    {
+      "id": "latency.slowest_endpoints",
+      "section": "Latency",
+      "intents": [
+        "latency",
+        "overview"
+      ],
+      "title": "Slowest endpoints (p95)",
+      "panel": "bargauge",
+      "unit": "s",
+      "targets": [
+        {
+          "expr": "topk(10, histogram_quantile(0.95, sum by (le, http_route) (rate(http_server_duration_bucket{SEL, http_route!=\"404 Not Found\"}[$__range]))))",
+          "legend": "{{http_route}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_server_duration_bucket"
+        ],
+        "groups": [
+          "global"
+        ]
+      },
+      "alt_panels": [
+        "table"
+      ]
+    },
+    {
+      "id": "latency.avg_by_endpoint",
+      "section": "Latency",
+      "intents": [
+        "latency",
+        "overview"
+      ],
+      "title": "Avg latency by endpoint",
+      "panel": "table",
+      "unit": "s",
+      "targets": [
+        {
+          "expr": "sum by (http_route) (rate(http_server_duration_sum{SEL, http_route!=\"404 Not Found\"}[$__rate_interval])) / sum by (http_route) (rate(http_server_duration_count{SEL, http_route!=\"404 Not Found\"}[$__rate_interval]))",
+          "legend": "{{http_route}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_server_duration_count",
+          "http_server_duration_sum"
+        ],
+        "groups": [
+          "global"
+        ]
+      }
+    },
+    {
+      "id": "latency.heatmap",
+      "section": "Latency",
+      "intents": [
+        "latency",
+        "overview"
+      ],
+      "title": "Latency heatmap",
+      "panel": "heatmap",
+      "unit": "s",
+      "targets": [
+        {
+          "expr": "sum by (le) (increase(http_server_duration_bucket{SEL, http_route!=\"404 Not Found\"}[$__rate_interval]))",
+          "legend": "Latency heatmap"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_server_duration_bucket"
+        ],
+        "groups": [
+          "global"
+        ]
+      }
+    },
+    {
+      "id": "latency.backend_p95",
+      "section": "Latency",
+      "intents": [
+        "latency"
+      ],
+      "title": "Backend p95 by backend",
+      "panel": "timeseries",
+      "unit": "s",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, krakend_endpoint_route, http_route) (rate(krakend_backend_duration_bucket{BSEL}[$__rate_interval])))",
+          "legend": "{{krakend_endpoint_route}} {{http_route}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "krakend_backend_duration_bucket"
+        ],
+        "groups": [
+          "backend"
+        ]
+      }
+    },
+    {
+      "id": "latency.backend_host_p95",
+      "section": "Latency",
+      "intents": [
+        "latency",
+        "overview",
+        "backends"
+      ],
+      "title": "Backend p95 by host",
+      "panel": "timeseries",
+      "unit": "s",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, server_address) (rate(http_client_duration_bucket{BSEL, server_address=~\"$backend_host\"}[$__rate_interval])))",
+          "legend": "{{server_address}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_client_duration_bucket"
+        ],
+        "groups": [
+          "backend-roundtrip"
+        ]
+      }
+    },
+    {
+      "id": "latency.slo_under_300ms",
+      "section": "Latency",
+      "intents": [
+        "latency"
+      ],
+      "title": "Requests under 300 ms",
+      "panel": "stat",
+      "unit": "percentunit",
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_duration_bucket{SEL, http_route!=\"404 Not Found\", le=\"0.3\"}[$__rate_interval])) / sum(rate(http_server_duration_count{SEL, http_route!=\"404 Not Found\"}[$__rate_interval]))",
+          "legend": "Requests under 300 ms"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_server_duration_bucket",
+          "http_server_duration_count"
+        ],
+        "groups": [
+          "global"
+        ]
+      },
+      "thresholds": [
+        {
+          "color": "red",
+          "value": null
+        },
+        {
+          "color": "orange",
+          "value": 0.95
+        },
+        {
+          "color": "green",
+          "value": 0.99
+        }
+      ]
+    },
+    {
+      "id": "latency.percentiles_in_range",
+      "section": "Latency",
+      "intents": [
+        "latency",
+        "overview"
+      ],
+      "title": "Latency p50 / p90 / p95 / p99",
+      "panel": "stat",
+      "unit": "s",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(http_server_duration_bucket{SEL, http_route!=\"404 Not Found\"}[$__range])))",
+          "legend": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.9, sum by (le) (rate(http_server_duration_bucket{SEL, http_route!=\"404 Not Found\"}[$__range])))",
+          "legend": "p90"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_duration_bucket{SEL, http_route!=\"404 Not Found\"}[$__range])))",
+          "legend": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_duration_bucket{SEL, http_route!=\"404 Not Found\"}[$__range])))",
+          "legend": "p99"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_server_duration_bucket"
+        ],
+        "groups": [
+          "global"
+        ]
+      },
+      "thresholds": [
+        {
+          "color": "green",
+          "value": null
+        },
+        {
+          "color": "orange",
+          "value": 0.3
+        },
+        {
+          "color": "red",
+          "value": 1.0
+        }
+      ],
+      "notes": "(estimated from histogram buckets: requests faster than the first bucket, 10 ms by default, show as 5-10 ms; compare with the average)",
+      "agent_notes": "percentiles are interpolated inside histogram buckets; when most requests fall in the first bucket, \u2264 10 ms with default buckets, they read about 5 / 9 / 9.5 / 9.9 ms whatever the real latency. Compare with latency.avg_in_range: if the average is far below, say in the reply that latency is under the first bucket and lead with the average; per endpoint, latency.avg_by_endpoint"
+    },
+    {
+      "id": "latency.avg_in_range",
+      "section": "Latency",
+      "intents": [
+        "latency",
+        "overview"
+      ],
+      "title": "Avg latency",
+      "panel": "stat",
+      "unit": "s",
+      "targets": [
+        {
+          "expr": "sum(increase(http_server_duration_sum{SEL, http_route!=\"404 Not Found\"}[$__range])) / sum(increase(http_server_duration_count{SEL, http_route!=\"404 Not Found\"}[$__range]))",
+          "legend": "Avg latency"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_server_duration_count",
+          "http_server_duration_sum"
+        ],
+        "groups": [
+          "global"
+        ]
+      },
+      "thresholds": [
+        {
+          "color": "green",
+          "value": null
+        },
+        {
+          "color": "orange",
+          "value": 0.3
+        },
+        {
+          "color": "red",
+          "value": 1.0
+        }
+      ]
+    },
+    {
+      "id": "latency.fastest_endpoints",
+      "section": "Latency",
+      "intents": [
+        "latency"
+      ],
+      "title": "Fastest endpoints (p95)",
+      "panel": "bargauge",
+      "unit": "s",
+      "targets": [
+        {
+          "expr": "bottomk(10, histogram_quantile(0.95, sum by (le, http_route) (rate(http_server_duration_bucket{SEL, http_route!=\"404 Not Found\"}[$__range]))))",
+          "legend": "{{http_route}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_server_duration_bucket"
+        ],
+        "groups": [
+          "global"
+        ]
+      },
+      "alt_panels": [
+        "table"
+      ]
+    },
+    {
+      "id": "latency.proxy_p95_by_endpoint",
+      "section": "Latency",
+      "intents": [
+        "latency"
+      ],
+      "title": "Proxy p95 by endpoint",
+      "panel": "timeseries",
+      "unit": "s",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, http_route) (rate(krakend_proxy_duration_bucket{SEL, http_request_method!=\"\"}[$__rate_interval])))",
+          "legend": "{{http_route}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "krakend_proxy_duration_bucket"
+        ],
+        "groups": [
+          "proxy"
+        ]
+      }
+    },
+    {
+      "id": "latency.backend_heatmap",
+      "section": "Latency",
+      "intents": [
+        "latency",
+        "backends"
+      ],
+      "title": "Backend latency heatmap",
+      "panel": "heatmap",
+      "unit": "s",
+      "targets": [
+        {
+          "expr": "sum by (le) (increase(http_client_duration_bucket{BSEL, server_address=~\"$backend_host\"}[$__rate_interval]))",
+          "legend": "Backend latency heatmap"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_client_duration_bucket"
+        ],
+        "groups": [
+          "backend-roundtrip"
+        ]
+      }
+    },
+    {
+      "id": "layers.global_avg",
+      "section": "\"Where is the time spent?\" (layer breakdown)",
+      "intents": [
+        "latency",
+        "layers"
+      ],
+      "title": "Total (client view)",
+      "panel": "timeseries",
+      "unit": "s",
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_duration_sum{SEL}[$__rate_interval])) / sum(rate(http_server_duration_count{SEL}[$__rate_interval]))",
+          "legend": "Total (client view)"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_server_duration_count",
+          "http_server_duration_sum"
+        ],
+        "groups": [
+          "global"
+        ]
+      },
+      "params": [
+        "single_endpoint"
+      ]
+    },
+    {
+      "id": "layers.proxy_avg",
+      "section": "\"Where is the time spent?\" (layer breakdown)",
+      "intents": [
+        "latency",
+        "layers"
+      ],
+      "title": "Proxy (fan-out + merge)",
+      "panel": "timeseries",
+      "unit": "s",
+      "targets": [
+        {
+          "expr": "sum(rate(krakend_proxy_duration_sum{SEL, http_request_method!=\"\"}[$__rate_interval])) / sum(rate(krakend_proxy_duration_count{SEL, http_request_method!=\"\"}[$__rate_interval]))",
+          "legend": "Proxy (fan-out + merge)"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "krakend_proxy_duration_count",
+          "krakend_proxy_duration_sum"
+        ],
+        "groups": [
+          "proxy"
+        ]
+      },
+      "params": [
+        "single_endpoint"
+      ]
+    },
+    {
+      "id": "layers.backend_avg",
+      "section": "\"Where is the time spent?\" (layer breakdown)",
+      "intents": [
+        "latency",
+        "layers"
+      ],
+      "title": "Slowest backend",
+      "panel": "timeseries",
+      "unit": "s",
+      "targets": [
+        {
+          "expr": "max(sum by (http_route) (rate(krakend_backend_duration_sum{BSEL}[$__rate_interval])) / sum by (http_route) (rate(krakend_backend_duration_count{BSEL}[$__rate_interval])))",
+          "legend": "Slowest backend"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "krakend_backend_duration_count",
+          "krakend_backend_duration_sum"
+        ],
+        "groups": [
+          "backend"
+        ]
+      },
+      "params": [
+        "single_endpoint"
+      ]
+    },
+    {
+      "id": "layers.roundtrip_avg",
+      "section": "\"Where is the time spent?\" (layer breakdown)",
+      "intents": [
+        "latency",
+        "layers"
+      ],
+      "title": "Network round trip (slowest)",
+      "panel": "timeseries",
+      "unit": "s",
+      "targets": [
+        {
+          "expr": "max(sum by (http_route) (rate(http_client_duration_sum{BSEL, server_address=~\"$backend_host\"}[$__rate_interval])) / sum by (http_route) (rate(http_client_duration_count{BSEL, server_address=~\"$backend_host\"}[$__rate_interval])))",
+          "legend": "Network round trip (slowest)"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_client_duration_count",
+          "http_client_duration_sum"
+        ],
+        "groups": [
+          "backend-roundtrip"
+        ]
+      },
+      "params": [
+        "single_endpoint"
+      ]
+    },
+    {
+      "id": "layers.gateway_overhead",
+      "section": "\"Where is the time spent?\" (layer breakdown)",
+      "intents": [
+        "latency",
+        "layers"
+      ],
+      "title": "KrakenD overhead",
+      "panel": "timeseries",
+      "unit": "s",
+      "targets": [
+        {
+          "expr": "(sum(rate(http_server_duration_sum{SEL}[$__rate_interval])) / sum(rate(http_server_duration_count{SEL}[$__rate_interval]))) - (max(sum by (http_route) (rate(http_client_duration_sum{BSEL, server_address=~\"$backend_host\"}[$__rate_interval])) / sum by (http_route) (rate(http_client_duration_count{BSEL, server_address=~\"$backend_host\"}[$__rate_interval]))))",
+          "legend": "KrakenD overhead"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_client_duration_count",
+          "http_client_duration_sum",
+          "http_server_duration_count",
+          "http_server_duration_sum"
+        ],
+        "groups": [
+          "backend-roundtrip",
+          "global"
+        ]
+      },
+      "params": [
+        "single_endpoint"
+      ]
+    },
+    {
+      "id": "backends.rps_by_host",
+      "section": "Backends",
+      "intents": [
+        "backends"
+      ],
+      "title": "Backend calls / s by host",
+      "panel": "timeseries",
+      "unit": "reqps",
+      "targets": [
+        {
+          "expr": "sum by (server_address) (rate(http_client_request_started_count_total{BSEL, server_address=~\"$backend_host\"}[$__rate_interval]))",
+          "legend": "{{server_address}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_client_request_started_count_total"
+        ],
+        "groups": [
+          "backend-roundtrip"
+        ]
+      }
+    },
+    {
+      "id": "backends.calls_per_endpoint",
+      "section": "Backends",
+      "intents": [
+        "backends"
+      ],
+      "title": "Backend calls / s by endpoint",
+      "panel": "table",
+      "unit": "reqps",
+      "targets": [
+        {
+          "expr": "sum by (krakend_endpoint_route, http_route) (rate(krakend_backend_duration_count{BSEL}[$__rate_interval]))",
+          "legend": "{{krakend_endpoint_route}} {{http_route}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "krakend_backend_duration_count"
+        ],
+        "groups": [
+          "backend"
+        ]
+      }
+    },
+    {
+      "id": "backends.fanout_ratio",
+      "section": "Backends",
+      "intents": [
+        "backends"
+      ],
+      "title": "Backend calls per request",
+      "panel": "stat",
+      "unit": "short",
+      "targets": [
+        {
+          "expr": "sum by (krakend_endpoint_route) (rate(krakend_backend_duration_count{BSEL}[$__rate_interval])) / on (krakend_endpoint_route) group_left label_replace(sum by (http_route) (rate(krakend_proxy_duration_count{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])), \"krakend_endpoint_route\", \"$1\", \"http_route\", \"(.*)\")",
+          "legend": "{{krakend_endpoint_route}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "krakend_backend_duration_count",
+          "krakend_proxy_duration_count"
+        ],
+        "groups": [
+          "backend",
+          "proxy"
+        ]
+      },
+      "alt_panels": [
+        "table"
+      ]
+    },
+    {
+      "id": "backends.conn_pool_wait_p95",
+      "section": "Backends",
+      "intents": [
+        "backends"
+      ],
+      "title": "Connection pool wait p95",
+      "panel": "timeseries",
+      "unit": "s",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, server_address) (rate(http_client_request_get_conn_duration_bucket{BSEL, server_address=~\"$backend_host\"}[$__rate_interval])))",
+          "legend": "{{server_address}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_client_request_get_conn_duration_bucket"
+        ],
+        "groups": [
+          "backend-connection"
+        ]
+      }
+    },
+    {
+      "id": "backends.dns_p95",
+      "section": "Backends",
+      "intents": [
+        "backends"
+      ],
+      "title": "DNS lookup p95",
+      "panel": "timeseries",
+      "unit": "s",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, server_address) (rate(http_client_request_dns_duration_bucket{BSEL, server_address=~\"$backend_host\"}[$__rate_interval])))",
+          "legend": "{{server_address}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_client_request_dns_duration_bucket"
+        ],
+        "groups": [
+          "backend-connection"
+        ]
+      }
+    },
+    {
+      "id": "backends.ingress_bytes",
+      "section": "Backends",
+      "intents": [
+        "backends"
+      ],
+      "title": "Bytes read from backends",
+      "panel": "timeseries",
+      "unit": "Bps",
+      "targets": [
+        {
+          "expr": "sum by (krakend_endpoint_route) (rate(http_client_response_read_size_b_total{BSEL}[$__rate_interval]))",
+          "legend": "{{krakend_endpoint_route}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_client_response_read_size_b_total"
+        ],
+        "groups": [
+          "backend-payload"
+        ]
+      }
+    },
+    {
+      "id": "backends.body_read_p95",
+      "section": "Backends",
+      "intents": [
+        "backends"
+      ],
+      "title": "Body read time p95",
+      "panel": "timeseries",
+      "unit": "s",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, krakend_endpoint_route) (rate(http_client_response_read_time_hist_seconds_bucket{BSEL}[$__rate_interval])))",
+          "legend": "{{krakend_endpoint_route}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_client_response_read_time_hist_seconds_bucket"
+        ],
+        "groups": [
+          "backend-payload"
+        ]
+      }
+    },
+    {
+      "id": "backends.rps_by_backend",
+      "section": "Backends",
+      "intents": [
+        "backends",
+        "overview"
+      ],
+      "title": "Backend calls / s by backend",
+      "panel": "timeseries",
+      "unit": "reqps",
+      "targets": [
+        {
+          "expr": "sum by (krakend_endpoint_route, server_address, http_route) (rate(http_client_duration_count{BSEL, server_address=~\"$backend_host\"}[$__rate_interval]))",
+          "legend": "{{krakend_endpoint_route}} {{server_address}} {{http_route}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_client_duration_count"
+        ],
+        "groups": [
+          "backend-roundtrip"
+        ]
+      }
+    },
+    {
+      "id": "backends.avg_by_backend",
+      "section": "Backends",
+      "intents": [
+        "backends"
+      ],
+      "title": "Avg backend latency",
+      "panel": "timeseries",
+      "unit": "s",
+      "targets": [
+        {
+          "expr": "sum by (server_address, http_route) (rate(http_client_duration_sum{BSEL, server_address=~\"$backend_host\"}[$__rate_interval])) / sum by (server_address, http_route) (rate(http_client_duration_count{BSEL, server_address=~\"$backend_host\"}[$__rate_interval]))",
+          "legend": "{{server_address}} {{http_route}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_client_duration_count",
+          "http_client_duration_sum"
+        ],
+        "groups": [
+          "backend-roundtrip"
+        ]
+      },
+      "alt_panels": [
+        "table"
+      ]
+    },
+    {
+      "id": "backends.slowest",
+      "section": "Backends",
+      "intents": [
+        "backends"
+      ],
+      "title": "Slowest backends (p95)",
+      "panel": "bargauge",
+      "unit": "s",
+      "targets": [
+        {
+          "expr": "topk(10, histogram_quantile(0.95, sum by (le, server_address, http_route) (rate(http_client_duration_bucket{BSEL, server_address=~\"$backend_host\"}[$__range]))))",
+          "legend": "{{server_address}} {{http_route}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_client_duration_bucket"
+        ],
+        "groups": [
+          "backend-roundtrip"
+        ]
+      },
+      "alt_panels": [
+        "table"
+      ]
+    },
+    {
+      "id": "backends.started_vs_canceled",
+      "section": "Backends",
+      "intents": [
+        "backends"
+      ],
+      "title": "Backend calls started vs canceled",
+      "panel": "timeseries",
+      "unit": "reqps",
+      "targets": [
+        {
+          "expr": "sum(rate(http_client_request_started_count_total{BSEL, server_address=~\"$backend_host\"}[$__rate_interval]))",
+          "legend": "Started"
+        },
+        {
+          "expr": "sum(rate(http_client_request_canceled_count_total{BSEL}[$__rate_interval])) or vector(0)",
+          "legend": "Canceled"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_client_request_canceled_count_total",
+          "http_client_request_started_count_total"
+        ],
+        "groups": [
+          "backend-roundtrip"
+        ]
+      },
+      "may_be_empty": true,
+      "may_be_empty_reason": "http_client_request_canceled_count_total is only exported after the first event"
+    },
+    {
+      "id": "backends.connection_setup_avg",
+      "section": "Backends",
+      "intents": [
+        "backends"
+      ],
+      "title": "Connection setup (avg)",
+      "panel": "timeseries",
+      "unit": "s",
+      "targets": [
+        {
+          "expr": "sum(rate(http_client_request_get_conn_duration_sum{BSEL, server_address=~\"$backend_host\"}[$__rate_interval])) / sum(rate(http_client_request_get_conn_duration_count{BSEL, server_address=~\"$backend_host\"}[$__rate_interval]))",
+          "legend": "Get connection"
+        },
+        {
+          "expr": "sum(rate(http_client_request_dns_duration_sum{BSEL, server_address=~\"$backend_host\"}[$__rate_interval])) / sum(rate(http_client_request_dns_duration_count{BSEL, server_address=~\"$backend_host\"}[$__rate_interval]))",
+          "legend": "DNS"
+        },
+        {
+          "expr": "sum(rate(http_client_request_tls_duration_sum{BSEL, server_address=~\"$backend_host\"}[$__rate_interval])) / sum(rate(http_client_request_tls_duration_count{BSEL, server_address=~\"$backend_host\"}[$__rate_interval]))",
+          "legend": "TLS handshake"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_client_request_dns_duration_count",
+          "http_client_request_dns_duration_sum",
+          "http_client_request_get_conn_duration_count",
+          "http_client_request_get_conn_duration_sum",
+          "http_client_request_tls_duration_count",
+          "http_client_request_tls_duration_sum"
+        ],
+        "groups": [
+          "backend-connection"
+        ]
+      }
+    },
+    {
+      "id": "backends.tls_p95",
+      "section": "Backends",
+      "intents": [
+        "backends"
+      ],
+      "title": "TLS handshake p95",
+      "panel": "timeseries",
+      "unit": "s",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, server_address) (rate(http_client_request_tls_duration_bucket{BSEL, server_address=~\"$backend_host\"}[$__rate_interval])))",
+          "legend": "{{server_address}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_client_request_tls_duration_bucket"
+        ],
+        "groups": [
+          "backend-connection"
+        ]
+      }
+    },
+    {
+      "id": "backends.response_size_avg",
+      "section": "Backends",
+      "intents": [
+        "backends"
+      ],
+      "title": "Avg backend response size",
+      "panel": "timeseries",
+      "unit": "bytes",
+      "targets": [
+        {
+          "expr": "sum by (server_address) (rate(http_client_response_size_sum{BSEL, server_address=~\"$backend_host\"}[$__rate_interval])) / sum by (server_address) (rate(http_client_response_size_count{BSEL, server_address=~\"$backend_host\"}[$__rate_interval]))",
+          "legend": "{{server_address}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_client_response_size_count",
+          "http_client_response_size_sum"
+        ],
+        "groups": [
+          "backend-roundtrip"
+        ]
+      }
+    },
+    {
+      "id": "backends.no_content_length",
+      "section": "Backends",
+      "intents": [
+        "backends"
+      ],
+      "title": "Responses without Content-Length",
+      "panel": "timeseries",
+      "unit": "reqps",
+      "targets": [
+        {
+          "expr": "sum by (server_address, http_route) (rate(http_client_response_no_content_length_total{BSEL, server_address=~\"$backend_host\"}[$__rate_interval]))",
+          "legend": "{{server_address}} {{http_route}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_client_response_no_content_length_total"
+        ],
+        "groups": [
+          "backend-roundtrip"
+        ]
+      },
+      "notes": "(chunked responses: KrakenD can't size them upfront)"
+    },
+    {
+      "id": "cb.opened_in_range",
+      "section": "Resilience (EE)",
+      "intents": [
+        "resilience",
+        "errors"
+      ],
+      "title": "Breaker opened",
+      "panel": "stat",
+      "unit": "short",
+      "targets": [
+        {
+          "expr": "sum by (cb_name) (increase(krakend_cb_state_close_to_open_total{J}[$__range])) + (sum by (cb_name) (increase(krakend_cb_state_half_to_open_total{J}[$__range])) or 0 * sum by (cb_name) (increase(krakend_cb_state_close_to_open_total{J}[$__range])))",
+          "legend": "{{cb_name}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "krakend_cb_state_close_to_open_total",
+          "krakend_cb_state_half_to_open_total"
+        ],
+        "groups": [
+          "circuit-breaker"
+        ]
+      },
+      "thresholds": [
+        {
+          "color": "green",
+          "value": null
+        },
+        {
+          "color": "red",
+          "value": 0.001
+        }
+      ],
+      "agent_notes": "the or 0 * keeps it working before the first failed recovery, when half_to_open has no series yet",
+      "optional_intents": [
+        "overview"
+      ]
+    },
+    {
+      "id": "cb.failed_recoveries",
+      "section": "Resilience (EE)",
+      "intents": [
+        "resilience",
+        "errors"
+      ],
+      "title": "Failed breaker recoveries",
+      "panel": "stat",
+      "unit": "short",
+      "targets": [
+        {
+          "expr": "sum by (cb_name) (increase(krakend_cb_state_half_to_open_total{job=~\"$job\", instance=~\"$instance\"}[$__range]))",
+          "legend": "{{cb_name}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "krakend_cb_state_half_to_open_total"
+        ],
+        "groups": [
+          "circuit-breaker"
+        ]
+      }
+    },
+    {
+      "id": "cb.transitions",
+      "section": "Resilience (EE)",
+      "intents": [
+        "resilience",
+        "errors"
+      ],
+      "title": "Breaker state changes",
+      "panel": "timeseries",
+      "unit": "short",
+      "targets": [
+        {
+          "expr": "sum by (cb_name) (round(increase(krakend_cb_state_close_to_open_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])))",
+          "legend": "{{cb_name}} closed \u2192 open (tripped)"
+        },
+        {
+          "expr": "sum by (cb_name) (round(increase(krakend_cb_state_open_to_half_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])))",
+          "legend": "{{cb_name}} open \u2192 half-open (probing)"
+        },
+        {
+          "expr": "sum by (cb_name) (round(increase(krakend_cb_state_half_to_open_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])))",
+          "legend": "{{cb_name}} half-open \u2192 open (probe failed)"
+        },
+        {
+          "expr": "sum by (cb_name) (round(increase(krakend_cb_state_half_to_close_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])))",
+          "legend": "{{cb_name}} half-open \u2192 closed (recovered)"
+        },
+        {
+          "expr": "round()",
+          "legend": "Breaker state changes 5"
+        },
+        {
+          "expr": "increase()",
+          "legend": "Breaker state changes 6"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "krakend_cb_state_close_to_open_total",
+          "krakend_cb_state_half_to_close_total",
+          "krakend_cb_state_half_to_open_total",
+          "krakend_cb_state_open_to_half_total"
+        ],
+        "groups": [
+          "circuit-breaker"
+        ]
+      },
+      "agent_notes": "because extrapolates counts to fractions like 2.67",
+      "bars": true,
+      "may_be_empty": true,
+      "may_be_empty_reason": "krakend_cb_state_half_to_close_total is only exported after the first event",
+      "optional_intents": [
+        "overview"
+      ]
+    },
+    {
+      "id": "cb.transitions_in_range",
+      "section": "Resilience (EE)",
+      "intents": [
+        "resilience",
+        "errors"
+      ],
+      "title": "Breaker state changes in range",
+      "panel": "bargauge",
+      "unit": "short",
+      "targets": [
+        {
+          "expr": "sum by (cb_name) (increase(krakend_cb_state_close_to_open_total{job=~\"$job\", instance=~\"$instance\"}[$__range]))",
+          "legend": "{{cb_name}} closed \u2192 open (tripped)"
+        },
+        {
+          "expr": "sum by (cb_name) (increase(krakend_cb_state_open_to_half_total{job=~\"$job\", instance=~\"$instance\"}[$__range]))",
+          "legend": "{{cb_name}} open \u2192 half-open (probing)"
+        },
+        {
+          "expr": "sum by (cb_name) (increase(krakend_cb_state_half_to_open_total{job=~\"$job\", instance=~\"$instance\"}[$__range]))",
+          "legend": "{{cb_name}} half-open \u2192 open (probe failed)"
+        },
+        {
+          "expr": "sum by (cb_name) (increase(krakend_cb_state_half_to_close_total{job=~\"$job\", instance=~\"$instance\"}[$__range]))",
+          "legend": "{{cb_name}} half-open \u2192 closed (recovered)"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "krakend_cb_state_close_to_open_total",
+          "krakend_cb_state_half_to_close_total",
+          "krakend_cb_state_half_to_open_total",
+          "krakend_cb_state_open_to_half_total"
+        ],
+        "groups": [
+          "circuit-breaker"
+        ]
+      },
+      "may_be_empty": true,
+      "may_be_empty_reason": "krakend_cb_state_half_to_close_total is only exported after the first event"
+    },
+    {
+      "id": "cb.consecutive_failures",
+      "section": "Resilience (EE)",
+      "intents": [
+        "resilience",
+        "errors"
+      ],
+      "title": "Consecutive failures",
+      "panel": "timeseries",
+      "unit": "short",
+      "targets": [
+        {
+          "expr": "max by (cb_name) (krakend_cb_errors_consecutive_failures{job=~\"$job\", instance=~\"$instance\"})",
+          "legend": "{{cb_name}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "krakend_cb_errors_consecutive_failures"
+        ],
+        "groups": [
+          "circuit-breaker"
+        ]
+      }
+    },
+    {
+      "id": "cb.window_counts",
+      "section": "Resilience (EE)",
+      "intents": [
+        "resilience",
+        "errors"
+      ],
+      "title": "Breaker window: successes vs failures",
+      "panel": "timeseries",
+      "unit": "short",
+      "targets": [
+        {
+          "expr": "max by (cb_name) (krakend_cb_errors_total_successes{J})",
+          "legend": "{{cb_name}} successes"
+        },
+        {
+          "expr": "max by (cb_name) (krakend_cb_errors_total_failures{J})",
+          "legend": "{{cb_name}} failures"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "krakend_cb_errors_total_failures",
+          "krakend_cb_errors_total_successes"
+        ],
+        "groups": [
+          "circuit-breaker"
+        ]
+      },
+      "notes": "Successes and failures counted in the breaker's current interval",
+      "agent_notes": "gauges, never rate() them"
+    },
+    {
+      "id": "ratelimit.rejections",
+      "section": "Resilience (EE)",
+      "intents": [
+        "resilience",
+        "errors"
+      ],
+      "title": "Rate-limited requests / s",
+      "panel": "timeseries",
+      "unit": "reqps",
+      "targets": [
+        {
+          "expr": "sum by (http_route) (rate(http_server_duration_count{SEL, http_response_status_code=~\"$ratelimit_status\"}[$__rate_interval]))",
+          "legend": "{{http_route}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_server_duration_count"
+        ],
+        "groups": [
+          "global"
+        ]
+      },
+      "notes": "restricted to endpoints that have qos/ratelimit/router",
+      "params": [
+        "ratelimit_routes",
+        "ratelimit_status"
+      ],
+      "optional_intents": [
+        "overview"
+      ]
+    },
+    {
+      "id": "quota.rejections",
+      "section": "Quotas (EE)",
+      "intents": [
+        "quota",
+        "quotas",
+        "governance"
+      ],
+      "title": "Quota rejections / s",
+      "panel": "timeseries",
+      "unit": "reqps",
+      "targets": [
+        {
+          "expr": "sum by (http_route) (rate(http_server_duration_count{SEL, http_response_status_code=\"429\"}[$__rate_interval])) or 0 * sum by (http_route) (rate(http_server_duration_count{SEL}[$__rate_interval]))",
+          "legend": "{{http_route}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_server_duration_count"
+        ],
+        "groups": [
+          "global"
+        ]
+      },
+      "params": [
+        "quota_routes"
+      ]
+    },
+    {
+      "id": "quota.rejection_ratio",
+      "section": "Quotas (EE)",
+      "intents": [
+        "quota",
+        "quotas",
+        "governance"
+      ],
+      "title": "Quota rejection ratio",
+      "panel": "timeseries",
+      "unit": "percentunit",
+      "targets": [
+        {
+          "expr": "(sum by (http_route) (rate(http_server_duration_count{SEL, http_response_status_code=\"429\"}[$__rate_interval])) or 0 * sum by (http_route) (rate(http_server_duration_count{SEL}[$__rate_interval]))) / sum by (http_route) (rate(http_server_duration_count{SEL}[$__rate_interval]))",
+          "legend": "{{http_route}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_server_duration_count"
+        ],
+        "groups": [
+          "global"
+        ]
+      },
+      "thresholds": [
+        {
+          "color": "green",
+          "value": null
+        },
+        {
+          "color": "orange",
+          "value": 0.05
+        },
+        {
+          "color": "red",
+          "value": 0.2
+        }
+      ],
+      "notes": "(share of requests rejected because the client used up its quota)",
+      "params": [
+        "quota_routes"
+      ],
+      "optional_intents": [
+        "overview"
+      ]
+    },
+    {
+      "id": "quota.rejected_in_range",
+      "section": "Quotas (EE)",
+      "intents": [
+        "quota",
+        "quotas",
+        "governance"
+      ],
+      "title": "Quota rejections",
+      "panel": "stat",
+      "unit": "short",
+      "targets": [
+        {
+          "expr": "sum(increase(http_server_duration_count{SEL, http_response_status_code=\"429\"}[$__range])) or vector(0)",
+          "legend": "Quota rejections"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_server_duration_count"
+        ],
+        "groups": [
+          "global"
+        ]
+      },
+      "thresholds": [
+        {
+          "color": "green",
+          "value": null
+        },
+        {
+          "color": "red",
+          "value": 0.001
+        }
+      ],
+      "params": [
+        "quota_routes"
+      ],
+      "optional_intents": [
+        "overview"
+      ]
+    },
+    {
+      "id": "ai.tokens_rate_by_model",
+      "section": "AI gateway (EE)",
+      "intents": [
+        "ai"
+      ],
+      "title": "Tokens / s by model",
+      "panel": "timeseries",
+      "unit": "short",
+      "targets": [
+        {
+          "expr": "sum by (provider, model) (rate(krakend_llm_tokens_total{J}[$__rate_interval]))",
+          "legend": "{{provider}} {{model}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "krakend_llm_tokens_total"
+        ],
+        "groups": [
+          "ai"
+        ]
+      },
+      "stacked": true,
+      "optional_intents": [
+        "overview"
+      ]
+    },
+    {
+      "id": "ai.tokens_in_range",
+      "section": "AI gateway (EE)",
+      "intents": [
+        "ai"
+      ],
+      "title": "Tokens",
+      "panel": "stat",
+      "unit": "short",
+      "targets": [
+        {
+          "expr": "sum(increase(krakend_llm_tokens_total{J}[$__range]))",
+          "legend": "Tokens"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "krakend_llm_tokens_total"
+        ],
+        "groups": [
+          "ai"
+        ]
+      },
+      "optional_intents": [
+        "overview"
+      ]
+    },
+    {
+      "id": "ai.tokens_in_vs_out",
+      "section": "AI gateway (EE)",
+      "intents": [
+        "ai"
+      ],
+      "title": "Input vs output tokens / s",
+      "panel": "timeseries",
+      "unit": "short",
+      "targets": [
+        {
+          "expr": "sum(rate(krakend_llm_tokens_in_total{J}[$__rate_interval]))",
+          "legend": "Input tokens"
+        },
+        {
+          "expr": "sum(rate(krakend_llm_tokens_out_total{J}[$__rate_interval]))",
+          "legend": "Output tokens"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "krakend_llm_tokens_in_total",
+          "krakend_llm_tokens_out_total"
+        ],
+        "groups": [
+          "ai"
+        ]
+      }
+    },
+    {
+      "id": "ai.tokens_by_model_in_range",
+      "section": "AI gateway (EE)",
+      "intents": [
+        "ai"
+      ],
+      "title": "Tokens by model",
+      "panel": "bargauge",
+      "unit": "short",
+      "targets": [
+        {
+          "expr": "sum by (provider, model) (increase(krakend_llm_tokens_total{J}[$__range]))",
+          "legend": "{{provider}} {{model}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "krakend_llm_tokens_total"
+        ],
+        "groups": [
+          "ai"
+        ]
+      },
+      "alt_panels": [
+        "table"
+      ]
+    },
+    {
+      "id": "ai.output_ratio",
+      "section": "AI gateway (EE)",
+      "intents": [
+        "ai"
+      ],
+      "title": "Output token share",
+      "panel": "stat",
+      "unit": "percentunit",
+      "targets": [
+        {
+          "expr": "sum(increase(krakend_llm_tokens_out_total{J}[$__range])) / sum(increase(krakend_llm_tokens_in_total{J}[$__range]))",
+          "legend": "Output token share"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "krakend_llm_tokens_in_total",
+          "krakend_llm_tokens_out_total"
+        ],
+        "groups": [
+          "ai"
+        ]
+      }
+    },
+    {
+      "id": "ai.guard_checks",
+      "section": "AI gateway (EE)",
+      "intents": [
+        "ai"
+      ],
+      "title": "Guard checks / s",
+      "panel": "timeseries",
+      "unit": "reqps",
+      "targets": [
+        {
+          "expr": "sum by (http_route, krakend_promptguard_blocked) (rate(krakend_promptguard_check_requests_total{J}[$__rate_interval]))",
+          "legend": "{{http_route}} {{krakend_promptguard_blocked}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "krakend_promptguard_check_requests_total"
+        ],
+        "groups": [
+          "ai"
+        ]
+      }
+    },
+    {
+      "id": "ai.guard_block_ratio",
+      "section": "AI gateway (EE)",
+      "intents": [
+        "ai"
+      ],
+      "title": "Guard block ratio",
+      "panel": "stat",
+      "unit": "percentunit",
+      "targets": [
+        {
+          "expr": "(sum(rate(krakend_promptguard_check_requests_total{J, krakend_promptguard_blocked=\"true\"}[$__rate_interval])) or vector(0)) / sum(rate(krakend_promptguard_check_requests_total{J}[$__rate_interval]))",
+          "legend": "Guard block ratio"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "krakend_promptguard_check_requests_total"
+        ],
+        "groups": [
+          "ai"
+        ]
+      },
+      "thresholds": [
+        {
+          "color": "green",
+          "value": null
+        },
+        {
+          "color": "orange",
+          "value": 0.01
+        },
+        {
+          "color": "red",
+          "value": 0.1
+        }
+      ],
+      "optional_intents": [
+        "overview"
+      ]
+    },
+    {
+      "id": "ai.guard_blocked_in_range",
+      "section": "AI gateway (EE)",
+      "intents": [
+        "ai"
+      ],
+      "title": "Blocked by guards",
+      "panel": "stat",
+      "unit": "short",
+      "targets": [
+        {
+          "expr": "sum(increase(krakend_promptguard_check_requests_total{J, krakend_promptguard_blocked=\"true\"}[$__range])) or vector(0)",
+          "legend": "Blocked by guards"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "krakend_promptguard_check_requests_total"
+        ],
+        "groups": [
+          "ai"
+        ]
+      },
+      "thresholds": [
+        {
+          "color": "green",
+          "value": null
+        },
+        {
+          "color": "red",
+          "value": 0.001
+        }
+      ]
+    },
+    {
+      "id": "ws.open_sessions",
+      "section": "WebSocket (EE)",
+      "intents": [
+        "websocket"
+      ],
+      "title": "Open WebSocket sessions",
+      "panel": "stat",
+      "unit": "short",
+      "targets": [
+        {
+          "expr": "sum(websocket_server_connections_count_b_total{J}) - sum(websocket_server_disconnections_count_b_total{J})",
+          "legend": "Open WebSocket sessions"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "websocket_server_connections_count_b_total",
+          "websocket_server_disconnections_count_b_total"
+        ],
+        "groups": [
+          "websocket"
+        ]
+      },
+      "alt_panels": [
+        "timeseries"
+      ],
+      "optional_intents": [
+        "overview"
+      ]
+    },
+    {
+      "id": "ws.connects_rate",
+      "section": "WebSocket (EE)",
+      "intents": [
+        "websocket"
+      ],
+      "title": "WebSocket connects / s",
+      "panel": "timeseries",
+      "unit": "ops",
+      "targets": [
+        {
+          "expr": "sum(rate(websocket_server_connections_count_b_total{J}[$__rate_interval]))",
+          "legend": "Connections"
+        },
+        {
+          "expr": "sum(rate(websocket_server_disconnections_count_b_total{J}[$__rate_interval]))",
+          "legend": "Disconnections"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "websocket_server_connections_count_b_total",
+          "websocket_server_disconnections_count_b_total"
+        ],
+        "groups": [
+          "websocket"
+        ]
+      }
+    },
+    {
+      "id": "ws.msgs_in_rate",
+      "section": "WebSocket (EE)",
+      "intents": [
+        "websocket"
+      ],
+      "title": "Messages from clients / s",
+      "panel": "timeseries",
+      "unit": "ops",
+      "targets": [
+        {
+          "expr": "sum(rate(websocket_server_request_size_hist_b_count{J}[$__rate_interval]))",
+          "legend": "Messages from clients / s"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "websocket_server_request_size_hist_b_count"
+        ],
+        "groups": [
+          "websocket"
+        ]
+      },
+      "notes": "(client \u2192 KrakenD)",
+      "optional_intents": [
+        "overview"
+      ]
+    },
+    {
+      "id": "ws.msgs_out_rate",
+      "section": "WebSocket (EE)",
+      "intents": [
+        "websocket"
+      ],
+      "title": "Messages to clients / s",
+      "panel": "timeseries",
+      "unit": "ops",
+      "targets": [
+        {
+          "expr": "sum(rate(websocket_server_response_size_hist_b_count{J}[$__rate_interval]))",
+          "legend": "Messages to clients / s"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "websocket_server_response_size_hist_b_count"
+        ],
+        "groups": [
+          "websocket"
+        ]
+      },
+      "notes": "(KrakenD \u2192 client)",
+      "optional_intents": [
+        "overview"
+      ]
+    },
+    {
+      "id": "ws.bytes_in_out",
+      "section": "WebSocket (EE)",
+      "intents": [
+        "websocket"
+      ],
+      "title": "WebSocket bytes in / out",
+      "panel": "timeseries",
+      "unit": "Bps",
+      "targets": [
+        {
+          "expr": "sum(rate(websocket_server_request_size_hist_b_sum{J}[$__rate_interval]))",
+          "legend": "client \u2192 KrakenD"
+        },
+        {
+          "expr": "sum(rate(websocket_server_response_size_hist_b_sum{J}[$__rate_interval]))",
+          "legend": "KrakenD \u2192 client"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "websocket_server_request_size_hist_b_sum",
+          "websocket_server_response_size_hist_b_sum"
+        ],
+        "groups": [
+          "websocket"
+        ]
+      }
+    },
+    {
+      "id": "ws.backend_connections",
+      "section": "WebSocket (EE)",
+      "intents": [
+        "websocket"
+      ],
+      "title": "Backend WebSocket connections / s",
+      "panel": "timeseries",
+      "unit": "ops",
+      "targets": [
+        {
+          "expr": "sum by (url_path) (rate(websocket_client_connections_count_total{J}[$__rate_interval]))",
+          "legend": "{{url_path}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "websocket_client_connections_count_total"
+        ],
+        "groups": [
+          "websocket"
+        ]
+      }
+    },
+    {
+      "id": "ws.backend_open_sessions",
+      "section": "WebSocket (EE)",
+      "intents": [
+        "websocket"
+      ],
+      "title": "Open backend WebSocket sessions",
+      "panel": "stat",
+      "unit": "short",
+      "targets": [
+        {
+          "expr": "sum by (url_path) (websocket_client_connections_count_total{J}) - sum by (url_path) (websocket_client_disconnections_count_b_total{J})",
+          "legend": "{{url_path}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "websocket_client_connections_count_total",
+          "websocket_client_disconnections_count_b_total"
+        ],
+        "groups": [
+          "websocket"
+        ]
+      },
+      "alt_panels": [
+        "timeseries"
+      ]
+    },
+    {
+      "id": "ws.msg_size_p95",
+      "section": "WebSocket (EE)",
+      "intents": [
+        "websocket"
+      ],
+      "title": "Message size p95",
+      "panel": "timeseries",
+      "unit": "bytes",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(websocket_server_request_size_hist_b_bucket{J}[$__rate_interval])))",
+          "legend": "client \u2192 KrakenD"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(websocket_server_response_size_hist_b_bucket{J}[$__rate_interval])))",
+          "legend": "KrakenD \u2192 client"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "websocket_server_request_size_hist_b_bucket",
+          "websocket_server_response_size_hist_b_bucket"
+        ],
+        "groups": [
+          "websocket"
+        ]
+      }
+    },
+    {
+      "id": "ws.backend_msgs_rate",
+      "section": "WebSocket (EE)",
+      "intents": [
+        "websocket"
+      ],
+      "title": "Backend messages / s",
+      "panel": "timeseries",
+      "unit": "ops",
+      "targets": [
+        {
+          "expr": "sum(rate(websocket_client_request_size_hist_b_count{J}[$__rate_interval]))",
+          "legend": "KrakenD \u2192 backend"
+        },
+        {
+          "expr": "sum(rate(websocket_client_response_size_hist_b_count{J}[$__rate_interval]))",
+          "legend": "backend \u2192 KrakenD"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "websocket_client_request_size_hist_b_count",
+          "websocket_client_response_size_hist_b_count"
+        ],
+        "groups": [
+          "websocket"
+        ]
+      }
+    },
+    {
+      "id": "agents.messages_rate",
+      "section": "Async agents (EE)",
+      "intents": [
+        "agents",
+        "async",
+        "messaging"
+      ],
+      "title": "Agent messages / s",
+      "panel": "timeseries",
+      "unit": "ops",
+      "targets": [
+        {
+          "expr": "sum by (http_route) (rate(krakend_proxy_duration_count{J, http_request_method=\"\"}[$__rate_interval]))",
+          "legend": "{{http_route}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "krakend_proxy_duration_count"
+        ],
+        "groups": [
+          "proxy"
+        ]
+      },
+      "notes": "(messages processed per agent)",
+      "optional_intents": [
+        "overview"
+      ]
+    },
+    {
+      "id": "agents.messages_in_range",
+      "section": "Async agents (EE)",
+      "intents": [
+        "agents",
+        "async",
+        "messaging"
+      ],
+      "title": "Agent messages",
+      "panel": "stat",
+      "unit": "short",
+      "targets": [
+        {
+          "expr": "sum by (http_route) (increase(krakend_proxy_duration_count{J, http_request_method=\"\"}[$__range]))",
+          "legend": "{{http_route}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "krakend_proxy_duration_count"
+        ],
+        "groups": [
+          "proxy"
+        ]
+      },
+      "alt_panels": [
+        "table"
+      ]
+    },
+    {
+      "id": "agents.error_ratio",
+      "section": "Async agents (EE)",
+      "intents": [
+        "agents",
+        "async",
+        "messaging"
+      ],
+      "title": "Agent error ratio",
+      "panel": "timeseries",
+      "unit": "percentunit",
+      "targets": [
+        {
+          "expr": "(sum by (http_route) (rate(krakend_proxy_duration_count{J, http_request_method=\"\", error=\"true\"}[$__rate_interval])) or 0 * sum by (http_route) (rate(krakend_proxy_duration_count{J, http_request_method=\"\"}[$__rate_interval]))) / sum by (http_route) (rate(krakend_proxy_duration_count{J, http_request_method=\"\"}[$__rate_interval]))",
+          "legend": "{{http_route}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "krakend_proxy_duration_count"
+        ],
+        "groups": [
+          "proxy"
+        ]
+      },
+      "thresholds": [
+        {
+          "color": "green",
+          "value": null
+        },
+        {
+          "color": "orange",
+          "value": 0.01
+        },
+        {
+          "color": "red",
+          "value": 0.05
+        }
+      ],
+      "alt_panels": [
+        "stat"
+      ],
+      "notes": "(messages whose backend call failed)",
+      "optional_intents": [
+        "overview"
+      ]
+    },
+    {
+      "id": "agents.processing_p95",
+      "section": "Async agents (EE)",
+      "intents": [
+        "agents",
+        "async",
+        "messaging"
+      ],
+      "title": "Agent processing p95",
+      "panel": "timeseries",
+      "unit": "s",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, http_route) (rate(krakend_proxy_duration_bucket{J, http_request_method=\"\"}[$__rate_interval])))",
+          "legend": "{{http_route}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "krakend_proxy_duration_bucket"
+        ],
+        "groups": [
+          "proxy"
+        ]
+      },
+      "optional_intents": [
+        "overview"
+      ]
+    },
+    {
+      "id": "agents.processing_avg",
+      "section": "Async agents (EE)",
+      "intents": [
+        "agents",
+        "async",
+        "messaging"
+      ],
+      "title": "Agent processing (avg)",
+      "panel": "timeseries",
+      "unit": "s",
+      "targets": [
+        {
+          "expr": "sum by (http_route) (rate(krakend_proxy_duration_sum{J, http_request_method=\"\"}[$__rate_interval])) / sum by (http_route) (rate(krakend_proxy_duration_count{J, http_request_method=\"\"}[$__rate_interval]))",
+          "legend": "{{http_route}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "krakend_proxy_duration_count",
+          "krakend_proxy_duration_sum"
+        ],
+        "groups": [
+          "proxy"
+        ]
+      }
+    },
+    {
+      "id": "agents.backend_p95",
+      "section": "Async agents (EE)",
+      "intents": [
+        "agents",
+        "async",
+        "messaging"
+      ],
+      "title": "Agent backend p95",
+      "panel": "timeseries",
+      "unit": "s",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, http_route) (rate(krakend_backend_duration_bucket{J, krakend_endpoint_route=\"\"}[$__rate_interval])))",
+          "legend": "{{http_route}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "krakend_backend_duration_bucket"
+        ],
+        "groups": [
+          "backend"
+        ]
+      }
+    },
+    {
+      "id": "agents.backend_status",
+      "section": "Async agents (EE)",
+      "intents": [
+        "agents",
+        "async",
+        "messaging"
+      ],
+      "title": "Agent backend responses by status",
+      "panel": "timeseries",
+      "unit": "reqps",
+      "targets": [
+        {
+          "expr": "sum by (server_address, http_route, http_response_status_code) (rate(http_client_duration_count{J, krakend_endpoint_route=\"\"}[$__rate_interval]))",
+          "legend": "{{server_address}} {{http_route}} {{http_response_status_code}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "http_client_duration_count"
+        ],
+        "groups": [
+          "backend-roundtrip"
+        ]
+      },
+      "stacked": true,
+      "optional_intents": [
+        "overview"
+      ]
+    },
+    {
+      "id": "agents.backend_failures",
+      "section": "Async agents (EE)",
+      "intents": [
+        "agents",
+        "async",
+        "messaging"
+      ],
+      "title": "Agent backend failures / s",
+      "panel": "timeseries",
+      "unit": "reqps",
+      "targets": [
+        {
+          "expr": "sum by (http_route) (rate(krakend_backend_duration_count{J, krakend_endpoint_route=\"\", error=\"true\"}[$__rate_interval])) or 0 * sum by (http_route) (rate(krakend_backend_duration_count{J, krakend_endpoint_route=\"\"}[$__rate_interval]))",
+          "legend": "{{http_route}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "krakend_backend_duration_count"
+        ],
+        "groups": [
+          "backend"
+        ]
+      }
+    },
+    {
+      "id": "kafka.published_rate",
+      "section": "Kafka messaging (EE)",
+      "intents": [
+        "kafka",
+        "messaging"
+      ],
+      "title": "Published messages / s",
+      "panel": "timeseries",
+      "unit": "ops",
+      "targets": [
+        {
+          "expr": "sum by (messaging_topic) (rate(messaging_write_body_duration_seconds_count{J}[$__rate_interval]))",
+          "legend": "{{messaging_topic}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "messaging_write_body_duration_seconds_count"
+        ],
+        "groups": [
+          "messaging"
+        ]
+      },
+      "optional_intents": [
+        "overview"
+      ]
+    },
+    {
+      "id": "kafka.consumed_rate",
+      "section": "Kafka messaging (EE)",
+      "intents": [
+        "kafka",
+        "messaging"
+      ],
+      "title": "Consumed messages / s",
+      "panel": "timeseries",
+      "unit": "ops",
+      "targets": [
+        {
+          "expr": "sum by (messaging_topic) (rate(messaging_read_body_duration_seconds_count{J}[$__rate_interval]))",
+          "legend": "{{messaging_topic}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "messaging_read_body_duration_seconds_count"
+        ],
+        "groups": [
+          "messaging"
+        ]
+      },
+      "optional_intents": [
+        "overview"
+      ]
+    },
+    {
+      "id": "kafka.publish_p95",
+      "section": "Kafka messaging (EE)",
+      "intents": [
+        "kafka",
+        "messaging"
+      ],
+      "title": "Publish p95",
+      "panel": "timeseries",
+      "unit": "s",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, messaging_topic) (rate(messaging_write_body_duration_seconds_bucket{J}[$__rate_interval])))",
+          "legend": "{{messaging_topic}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "messaging_write_body_duration_seconds_bucket"
+        ],
+        "groups": [
+          "messaging"
+        ]
+      },
+      "optional_intents": [
+        "overview"
+      ]
+    },
+    {
+      "id": "kafka.ack_p95",
+      "section": "Kafka messaging (EE)",
+      "intents": [
+        "kafka",
+        "messaging"
+      ],
+      "title": "Ack p95",
+      "panel": "timeseries",
+      "unit": "s",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, messaging_topic) (rate(messaging_read_ack_duration_seconds_bucket{J}[$__rate_interval])))",
+          "legend": "{{messaging_topic}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "messaging_read_ack_duration_seconds_bucket"
+        ],
+        "groups": [
+          "messaging"
+        ]
+      }
+    },
+    {
+      "id": "kafka.msg_size_avg",
+      "section": "Kafka messaging (EE)",
+      "intents": [
+        "kafka",
+        "messaging"
+      ],
+      "title": "Avg published message size",
+      "panel": "stat",
+      "unit": "bytes",
+      "targets": [
+        {
+          "expr": "sum(increase(messaging_write_body_size_bytes_sum{J}[$__range])) / sum(increase(messaging_write_body_size_bytes_count{J}[$__range]))",
+          "legend": "Avg published message size"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "messaging_write_body_size_bytes_count",
+          "messaging_write_body_size_bytes_sum"
+        ],
+        "groups": [
+          "messaging"
+        ]
+      }
+    },
+    {
+      "id": "kafka.failures",
+      "section": "Kafka messaging (EE)",
+      "intents": [
+        "kafka",
+        "messaging"
+      ],
+      "title": "Kafka failures",
+      "panel": "stat",
+      "unit": "short",
+      "targets": [
+        {
+          "expr": "sum(increase(messaging_write_failure_count_seconds_count{J}[$__range])) or vector(0)",
+          "legend": "Publish failures"
+        },
+        {
+          "expr": "sum(increase(messaging_read_failure_count_seconds_count{J}[$__range])) or vector(0)",
+          "legend": "Consume failures"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "messaging_read_failure_count_seconds_count",
+          "messaging_write_failure_count_seconds_count"
+        ],
+        "groups": [
+          "messaging"
+        ]
+      },
+      "thresholds": [
+        {
+          "color": "green",
+          "value": null
+        },
+        {
+          "color": "red",
+          "value": 0.001
+        }
+      ],
+      "optional_intents": [
+        "overview"
+      ]
+    },
+    {
+      "id": "kafka.failures_by_topic",
+      "section": "Kafka messaging (EE)",
+      "intents": [
+        "kafka",
+        "messaging"
+      ],
+      "title": "Kafka failures / s by topic",
+      "panel": "timeseries",
+      "unit": "ops",
+      "targets": [
+        {
+          "expr": "sum by (messaging_origin, messaging_topic) (rate(messaging_read_failure_count_seconds_count{J}[$__rate_interval]))",
+          "legend": "consume {{messaging_origin}} {{messaging_topic}}"
+        },
+        {
+          "expr": "sum by (messaging_topic) (rate(messaging_write_failure_count_seconds_count{J}[$__rate_interval]))",
+          "legend": "publish {{messaging_topic}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "messaging_read_failure_count_seconds_count",
+          "messaging_write_failure_count_seconds_count"
+        ],
+        "groups": [
+          "messaging"
+        ]
+      },
+      "may_be_empty": true,
+      "may_be_empty_reason": "messaging_read_failure_count_seconds is only exported after the first event; messaging_write_failure_count_seconds is only exported after the first event"
+    },
+    {
+      "id": "kafka.failure_avg_duration",
+      "section": "Kafka messaging (EE)",
+      "intents": [
+        "kafka",
+        "messaging"
+      ],
+      "title": "Time to fail (avg) by topic",
+      "panel": "timeseries",
+      "unit": "s",
+      "targets": [
+        {
+          "expr": "sum by (messaging_topic) (rate(messaging_write_failure_count_seconds_sum{J}[$__rate_interval])) / sum by (messaging_topic) (rate(messaging_write_failure_count_seconds_count{J}[$__rate_interval]))",
+          "legend": "publish {{messaging_topic}}"
+        },
+        {
+          "expr": "sum by (messaging_origin, messaging_topic) (rate(messaging_read_failure_count_seconds_sum{J}[$__rate_interval])) / sum by (messaging_origin, messaging_topic) (rate(messaging_read_failure_count_seconds_count{J}[$__rate_interval]))",
+          "legend": "consume {{messaging_origin}} {{messaging_topic}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "messaging_read_failure_count_seconds_count",
+          "messaging_read_failure_count_seconds_sum",
+          "messaging_write_failure_count_seconds_count",
+          "messaging_write_failure_count_seconds_sum"
+        ],
+        "groups": [
+          "messaging"
+        ]
+      },
+      "notes": "(how long an operation ran before failing: close to the client timeout means the broker is unreachable or slow, near zero means it rejected the message)",
+      "may_be_empty": true,
+      "may_be_empty_reason": "messaging_read_failure_count_seconds is only exported after the first event; messaging_write_failure_count_seconds is only exported after the first event"
+    },
+    {
+      "id": "kafka.consumed_by_origin",
+      "section": "Kafka messaging (EE)",
+      "intents": [
+        "kafka",
+        "messaging"
+      ],
+      "title": "Consumed messages / s by origin",
+      "panel": "timeseries",
+      "unit": "ops",
+      "targets": [
+        {
+          "expr": "sum by (messaging_origin, messaging_topic) (rate(messaging_read_body_duration_seconds_count{J}[$__rate_interval]))",
+          "legend": "{{messaging_origin}} {{messaging_topic}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "messaging_read_body_duration_seconds_count"
+        ],
+        "groups": [
+          "messaging"
+        ]
+      },
+      "notes": "(subscriber = endpoint backends, asyncagent = async agents)"
+    },
+    {
+      "id": "kafka.publish_avg",
+      "section": "Kafka messaging (EE)",
+      "intents": [
+        "kafka",
+        "messaging"
+      ],
+      "title": "Publish (avg)",
+      "panel": "timeseries",
+      "unit": "s",
+      "targets": [
+        {
+          "expr": "sum by (messaging_topic) (rate(messaging_write_body_duration_seconds_sum{J}[$__rate_interval])) / sum by (messaging_topic) (rate(messaging_write_body_duration_seconds_count{J}[$__rate_interval]))",
+          "legend": "{{messaging_topic}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "messaging_write_body_duration_seconds_count",
+          "messaging_write_body_duration_seconds_sum"
+        ],
+        "groups": [
+          "messaging"
+        ]
+      }
+    },
+    {
+      "id": "kafka.ack_avg_by_origin",
+      "section": "Kafka messaging (EE)",
+      "intents": [
+        "kafka",
+        "messaging"
+      ],
+      "title": "Ack (avg) by origin",
+      "panel": "timeseries",
+      "unit": "s",
+      "targets": [
+        {
+          "expr": "sum by (messaging_origin, messaging_topic) (rate(messaging_read_ack_duration_seconds_sum{J}[$__rate_interval])) / sum by (messaging_origin, messaging_topic) (rate(messaging_read_ack_duration_seconds_count{J}[$__rate_interval]))",
+          "legend": "{{messaging_origin}} {{messaging_topic}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "messaging_read_ack_duration_seconds_count",
+          "messaging_read_ack_duration_seconds_sum"
+        ],
+        "groups": [
+          "messaging"
+        ]
+      },
+      "notes": "(time processing a message before acking it)"
+    },
+    {
+      "id": "kafka.publish_heatmap",
+      "section": "Kafka messaging (EE)",
+      "intents": [
+        "kafka",
+        "messaging"
+      ],
+      "title": "Publish latency heatmap",
+      "panel": "heatmap",
+      "unit": "s",
+      "targets": [
+        {
+          "expr": "sum by (le) (increase(messaging_write_body_duration_seconds_bucket{J}[$__rate_interval]))",
+          "legend": "Publish latency heatmap"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "messaging_write_body_duration_seconds_bucket"
+        ],
+        "groups": [
+          "messaging"
+        ]
+      }
+    },
+    {
+      "id": "kafka.consumed_msg_size_avg",
+      "section": "Kafka messaging (EE)",
+      "intents": [
+        "kafka",
+        "messaging"
+      ],
+      "title": "Avg consumed message size",
+      "panel": "stat",
+      "unit": "bytes",
+      "targets": [
+        {
+          "expr": "sum(increase(messaging_read_body_size_bytes_sum{J}[$__range])) / sum(increase(messaging_read_body_size_bytes_count{J}[$__range]))",
+          "legend": "Avg consumed message size"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "messaging_read_body_size_bytes_count",
+          "messaging_read_body_size_bytes_sum"
+        ],
+        "groups": [
+          "messaging"
+        ]
+      }
+    },
+    {
+      "id": "redis.pool_saturation",
+      "section": "Redis connection pools (EE)",
+      "intents": [
+        "redis"
+      ],
+      "title": "Redis pool usage",
+      "panel": "gauge",
+      "unit": "percentunit",
+      "targets": [
+        {
+          "expr": "max by (pool_name) (db_client_connections_usage{J, state=\"used\"}) / max by (pool_name) (db_client_connections_max{J})",
+          "legend": "{{pool_name}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "db_client_connections_max",
+          "db_client_connections_usage"
+        ],
+        "groups": [
+          "redis-pool"
+        ]
+      },
+      "thresholds": [
+        {
+          "color": "green",
+          "value": null
+        },
+        {
+          "color": "orange",
+          "value": 0.7
+        },
+        {
+          "color": "red",
+          "value": 0.9
+        }
+      ],
+      "optional_intents": [
+        "overview"
+      ]
+    },
+    {
+      "id": "redis.conns_by_state",
+      "section": "Redis connection pools (EE)",
+      "intents": [
+        "redis"
+      ],
+      "title": "Redis connections by state",
+      "panel": "timeseries",
+      "unit": "short",
+      "targets": [
+        {
+          "expr": "sum by (pool_name, state) (db_client_connections_usage{J})",
+          "legend": "{{pool_name}} {{state}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "db_client_connections_usage"
+        ],
+        "groups": [
+          "redis-pool"
+        ]
+      },
+      "stacked": true
+    },
+    {
+      "id": "redis.cmd_p95",
+      "section": "Redis connection pools (EE)",
+      "intents": [
+        "redis"
+      ],
+      "title": "Redis command p95",
+      "panel": "timeseries",
+      "unit": "ms",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, pool_name, type) (rate(db_client_connections_use_time_milliseconds_bucket{J}[$__rate_interval])))",
+          "legend": "{{pool_name}} {{type}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "db_client_connections_use_time_milliseconds_bucket"
+        ],
+        "groups": [
+          "redis-pool"
+        ]
+      },
+      "optional_intents": [
+        "overview"
+      ]
+    },
+    {
+      "id": "redis.cmd_errors",
+      "section": "Redis connection pools (EE)",
+      "intents": [
+        "redis"
+      ],
+      "title": "Redis command errors / s",
+      "panel": "timeseries",
+      "unit": "ops",
+      "targets": [
+        {
+          "expr": "sum by (pool_name) (rate(db_client_connections_use_time_milliseconds_count{J, status=\"error\"}[$__rate_interval]))",
+          "legend": "{{pool_name}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "db_client_connections_use_time_milliseconds_count"
+        ],
+        "groups": [
+          "redis-pool"
+        ]
+      }
+    },
+    {
+      "id": "redis.timeouts",
+      "section": "Redis connection pools (EE)",
+      "intents": [
+        "redis"
+      ],
+      "title": "Redis pool timeouts",
+      "panel": "stat",
+      "unit": "short",
+      "targets": [
+        {
+          "expr": "sum(delta(db_client_connections_timeouts{J}[$__range]))",
+          "legend": "Redis pool timeouts"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "db_client_connections_timeouts"
+        ],
+        "groups": [
+          "redis-pool"
+        ]
+      },
+      "thresholds": [
+        {
+          "color": "green",
+          "value": null
+        },
+        {
+          "color": "red",
+          "value": 0.001
+        }
+      ],
+      "optional_intents": [
+        "overview"
+      ]
+    },
+    {
+      "id": "redis.waits",
+      "section": "Redis connection pools (EE)",
+      "intents": [
+        "redis"
+      ],
+      "title": "Redis pool waits / s",
+      "panel": "timeseries",
+      "unit": "ops",
+      "targets": [
+        {
+          "expr": "sum by (pool_name) (deriv(db_client_connections_waits{J}[5m]))",
+          "legend": "{{pool_name}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "db_client_connections_waits"
+        ],
+        "groups": [
+          "redis-pool"
+        ]
+      }
+    },
+    {
+      "id": "redis.pool_config",
+      "section": "Redis connection pools (EE)",
+      "intents": [
+        "redis"
+      ],
+      "title": "Redis pool settings",
+      "panel": "table",
+      "unit": "short",
+      "targets": [
+        {
+          "expr": "max by (pool_name) (db_client_connections_max{J})",
+          "legend": "max"
+        },
+        {
+          "expr": "max by (pool_name) (db_client_connections_idle_min{J})",
+          "legend": "idle min"
+        },
+        {
+          "expr": "max by (pool_name) (db_client_connections_idle_max{J})",
+          "legend": "idle max"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "db_client_connections_idle_max",
+          "db_client_connections_idle_min",
+          "db_client_connections_max"
+        ],
+        "groups": [
+          "redis-pool"
+        ]
+      }
+    },
+    {
+      "id": "redis.cmd_avg",
+      "section": "Redis connection pools (EE)",
+      "intents": [
+        "redis"
+      ],
+      "title": "Redis command (avg)",
+      "panel": "timeseries",
+      "unit": "ms",
+      "targets": [
+        {
+          "expr": "sum by (pool_name) (rate(db_client_connections_use_time_milliseconds_sum{J}[$__rate_interval])) / sum by (pool_name) (rate(db_client_connections_use_time_milliseconds_count{J}[$__rate_interval]))",
+          "legend": "{{pool_name}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "db_client_connections_use_time_milliseconds_count",
+          "db_client_connections_use_time_milliseconds_sum"
+        ],
+        "groups": [
+          "redis-pool"
+        ]
+      }
+    },
+    {
+      "id": "redis.conn_create_avg",
+      "section": "Redis connection pools (EE)",
+      "intents": [
+        "redis"
+      ],
+      "title": "Redis connection setup (avg)",
+      "panel": "timeseries",
+      "unit": "ms",
+      "targets": [
+        {
+          "expr": "sum by (pool_name) (rate(db_client_connections_create_time_milliseconds_sum{J}[$__rate_interval])) / sum by (pool_name) (rate(db_client_connections_create_time_milliseconds_count{J}[$__rate_interval]))",
+          "legend": "{{pool_name}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "db_client_connections_create_time_milliseconds_count",
+          "db_client_connections_create_time_milliseconds_sum"
+        ],
+        "groups": [
+          "redis-pool"
+        ]
+      }
+    },
+    {
+      "id": "redis.pool_reuse_ratio",
+      "section": "Redis connection pools (EE)",
+      "intents": [
+        "redis"
+      ],
+      "title": "Redis connection reuse",
+      "panel": "stat",
+      "unit": "percentunit",
+      "targets": [
+        {
+          "expr": "sum by (pool_name) (delta(db_client_connections_hits{J}[$__range])) / (sum by (pool_name) (delta(db_client_connections_hits{J}[$__range])) + sum by (pool_name) (delta(db_client_connections_misses{J}[$__range])))",
+          "legend": "{{pool_name}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "db_client_connections_hits",
+          "db_client_connections_misses"
+        ],
+        "groups": [
+          "redis-pool"
+        ]
+      },
+      "notes": "(share of commands that got an idle pooled connection)"
+    },
+    {
+      "id": "runtime.nodes_up",
+      "section": "Runtime",
+      "intents": [
+        "runtime",
+        "overview"
+      ],
+      "title": "Nodes up",
+      "panel": "stat",
+      "unit": "short",
+      "targets": [
+        {
+          "expr": "count(up{J} == 1) or vector(0)",
+          "legend": "Nodes up"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "up"
+        ],
+        "groups": [
+          "scrape"
+        ]
+      },
+      "thresholds": [
+        {
+          "color": "red",
+          "value": null
+        },
+        {
+          "color": "green",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "id": "runtime.uptime",
+      "section": "Runtime",
+      "intents": [
+        "runtime"
+      ],
+      "title": "Uptime",
+      "panel": "stat",
+      "unit": "s",
+      "targets": [
+        {
+          "expr": "min(time() - process_start_time_seconds{J})",
+          "legend": "Uptime"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "process_start_time_seconds"
+        ],
+        "groups": [
+          "runtime"
+        ]
+      },
+      "notes": "(most recently restarted node)"
+    },
+    {
+      "id": "runtime.restarts",
+      "section": "Runtime",
+      "intents": [
+        "runtime"
+      ],
+      "title": "Restarts",
+      "panel": "stat",
+      "unit": "short",
+      "targets": [
+        {
+          "expr": "sum(changes(process_start_time_seconds{J}[$__range]))",
+          "legend": "Restarts"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "process_start_time_seconds"
+        ],
+        "groups": [
+          "runtime"
+        ]
+      },
+      "thresholds": [
+        {
+          "color": "green",
+          "value": null
+        },
+        {
+          "color": "red",
+          "value": 0.001
+        }
+      ]
+    },
+    {
+      "id": "runtime.go_version",
+      "section": "Runtime",
+      "intents": [
+        "runtime"
+      ],
+      "title": "Go version",
+      "panel": "table",
+      "unit": "short",
+      "targets": [
+        {
+          "expr": "count by (version) (go_info{J})",
+          "legend": "{{version}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "go_info"
+        ],
+        "groups": [
+          "runtime"
+        ]
+      }
+    },
+    {
+      "id": "runtime.cpu",
+      "section": "Runtime",
+      "intents": [
+        "runtime",
+        "overview"
+      ],
+      "title": "CPU (cores)",
+      "panel": "timeseries",
+      "unit": "short",
+      "targets": [
+        {
+          "expr": "sum by (instance) (rate(process_cpu_seconds_total{J}[$__rate_interval]))",
+          "legend": "{{instance}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "process_cpu_seconds_total"
+        ],
+        "groups": [
+          "runtime"
+        ]
+      }
+    },
+    {
+      "id": "runtime.cpu_saturation",
+      "section": "Runtime",
+      "intents": [
+        "runtime"
+      ],
+      "title": "CPU saturation",
+      "panel": "gauge",
+      "unit": "percentunit",
+      "targets": [
+        {
+          "expr": "max by (instance) (rate(process_cpu_seconds_total{J}[$__rate_interval]) / go_sched_gomaxprocs_threads{J})",
+          "legend": "{{instance}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "go_sched_gomaxprocs_threads",
+          "process_cpu_seconds_total"
+        ],
+        "groups": [
+          "runtime"
+        ]
+      },
+      "thresholds": [
+        {
+          "color": "green",
+          "value": null
+        },
+        {
+          "color": "orange",
+          "value": 0.7
+        },
+        {
+          "color": "red",
+          "value": 0.9
+        }
+      ],
+      "notes": "(CPU used against the cores Go may use)"
+    },
+    {
+      "id": "runtime.gomaxprocs",
+      "section": "Runtime",
+      "intents": [
+        "runtime"
+      ],
+      "title": "GOMAXPROCS",
+      "panel": "stat",
+      "unit": "short",
+      "targets": [
+        {
+          "expr": "max(go_sched_gomaxprocs_threads{J})",
+          "legend": "GOMAXPROCS"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "go_sched_gomaxprocs_threads"
+        ],
+        "groups": [
+          "runtime"
+        ]
+      }
+    },
+    {
+      "id": "runtime.rss",
+      "section": "Runtime",
+      "intents": [
+        "runtime",
+        "overview"
+      ],
+      "title": "Resident memory (RSS)",
+      "panel": "timeseries",
+      "unit": "bytes",
+      "targets": [
+        {
+          "expr": "sum by (instance) (process_resident_memory_bytes{J})",
+          "legend": "{{instance}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "process_resident_memory_bytes"
+        ],
+        "groups": [
+          "runtime"
+        ]
+      }
+    },
+    {
+      "id": "runtime.memory_avg_in_range",
+      "section": "Runtime",
+      "intents": [
+        "runtime"
+      ],
+      "title": "Avg memory (RSS)",
+      "panel": "stat",
+      "unit": "bytes",
+      "targets": [
+        {
+          "expr": "avg(avg_over_time(process_resident_memory_bytes{J}[$__range]))",
+          "legend": "Avg memory (RSS)"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "process_resident_memory_bytes"
+        ],
+        "groups": [
+          "runtime"
+        ]
+      },
+      "notes": "(per node)"
+    },
+    {
+      "id": "runtime.memory_breakdown",
+      "section": "Runtime",
+      "intents": [
+        "runtime"
+      ],
+      "title": "Go memory breakdown",
+      "panel": "timeseries",
+      "unit": "bytes",
+      "targets": [
+        {
+          "expr": "sum(go_memstats_sys_bytes{J})",
+          "legend": "Obtained from OS"
+        },
+        {
+          "expr": "sum(go_memstats_heap_inuse_bytes{J})",
+          "legend": "Heap in use"
+        },
+        {
+          "expr": "sum(go_memstats_heap_idle_bytes{J}) - sum(go_memstats_heap_released_bytes{J})",
+          "legend": "Heap idle (kept)"
+        },
+        {
+          "expr": "sum(go_memstats_heap_released_bytes{J})",
+          "legend": "Heap released to OS"
+        },
+        {
+          "expr": "sum(go_memstats_stack_inuse_bytes{J})",
+          "legend": "Stacks"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "go_memstats_heap_idle_bytes",
+          "go_memstats_heap_inuse_bytes",
+          "go_memstats_heap_released_bytes",
+          "go_memstats_stack_inuse_bytes",
+          "go_memstats_sys_bytes"
+        ],
+        "groups": [
+          "runtime"
+        ]
+      }
+    },
+    {
+      "id": "runtime.heap_inuse",
+      "section": "Runtime",
+      "intents": [
+        "runtime"
+      ],
+      "title": "Heap in use",
+      "panel": "timeseries",
+      "unit": "bytes",
+      "targets": [
+        {
+          "expr": "sum by (instance) (go_memstats_heap_inuse_bytes{J})",
+          "legend": "{{instance}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "go_memstats_heap_inuse_bytes"
+        ],
+        "groups": [
+          "runtime"
+        ]
+      }
+    },
+    {
+      "id": "runtime.heap_vs_gc_target",
+      "section": "Runtime",
+      "intents": [
+        "runtime"
+      ],
+      "title": "Heap vs GC target",
+      "panel": "timeseries",
+      "unit": "bytes",
+      "targets": [
+        {
+          "expr": "sum(go_memstats_heap_alloc_bytes{J})",
+          "legend": "Live heap"
+        },
+        {
+          "expr": "sum(go_memstats_next_gc_bytes{J})",
+          "legend": "Next GC at"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "go_memstats_heap_alloc_bytes",
+          "go_memstats_next_gc_bytes"
+        ],
+        "groups": [
+          "runtime"
+        ]
+      }
+    },
+    {
+      "id": "runtime.memory_limit_usage",
+      "section": "Runtime",
+      "intents": [
+        "runtime"
+      ],
+      "title": "Memory limit used",
+      "panel": "gauge",
+      "unit": "percentunit",
+      "targets": [
+        {
+          "expr": "max by (instance) (go_memstats_sys_bytes{J} / (go_gc_gomemlimit_bytes{J} < 1e18))",
+          "legend": "{{instance}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "go_gc_gomemlimit_bytes",
+          "go_memstats_sys_bytes"
+        ],
+        "groups": [
+          "runtime"
+        ]
+      },
+      "thresholds": [
+        {
+          "color": "green",
+          "value": null
+        },
+        {
+          "color": "orange",
+          "value": 0.8
+        },
+        {
+          "color": "red",
+          "value": 0.95
+        }
+      ],
+      "agent_notes": "empty without GOMEMLIMIT; keep it, production containers often set it"
+    },
+    {
+      "id": "runtime.alloc_rate",
+      "section": "Runtime",
+      "intents": [
+        "runtime"
+      ],
+      "title": "Allocation rate",
+      "panel": "timeseries",
+      "unit": "Bps",
+      "targets": [
+        {
+          "expr": "sum by (instance) (rate(go_memstats_alloc_bytes_total{J}[$__rate_interval]))",
+          "legend": "{{instance}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "go_memstats_alloc_bytes_total"
+        ],
+        "groups": [
+          "runtime"
+        ]
+      }
+    },
+    {
+      "id": "runtime.mallocs_frees",
+      "section": "Runtime",
+      "intents": [
+        "runtime"
+      ],
+      "title": "Mallocs vs frees / s",
+      "panel": "timeseries",
+      "unit": "ops",
+      "targets": [
+        {
+          "expr": "sum(rate(go_memstats_mallocs_total{J}[$__rate_interval]))",
+          "legend": "Allocations"
+        },
+        {
+          "expr": "sum(rate(go_memstats_frees_total{J}[$__rate_interval]))",
+          "legend": "Frees"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "go_memstats_frees_total",
+          "go_memstats_mallocs_total"
+        ],
+        "groups": [
+          "runtime"
+        ]
+      }
+    },
+    {
+      "id": "runtime.heap_objects",
+      "section": "Runtime",
+      "intents": [
+        "runtime"
+      ],
+      "title": "Heap objects",
+      "panel": "timeseries",
+      "unit": "short",
+      "targets": [
+        {
+          "expr": "sum by (instance) (go_memstats_heap_objects{J})",
+          "legend": "{{instance}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "go_memstats_heap_objects"
+        ],
+        "groups": [
+          "runtime"
+        ]
+      }
+    },
+    {
+      "id": "runtime.gc_rate",
+      "section": "Runtime",
+      "intents": [
+        "runtime"
+      ],
+      "title": "GC cycles / s",
+      "panel": "timeseries",
+      "unit": "ops",
+      "targets": [
+        {
+          "expr": "sum by (instance) (rate(go_gc_duration_seconds_count{J}[$__rate_interval]))",
+          "legend": "{{instance}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "go_gc_duration_seconds_count"
+        ],
+        "groups": [
+          "runtime"
+        ]
+      }
+    },
+    {
+      "id": "runtime.gc_time_fraction",
+      "section": "Runtime",
+      "intents": [
+        "runtime"
+      ],
+      "title": "Time in GC pauses",
+      "panel": "timeseries",
+      "unit": "percentunit",
+      "targets": [
+        {
+          "expr": "sum by (instance) (rate(go_gc_duration_seconds_sum{J}[$__rate_interval]))",
+          "legend": "{{instance}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "go_gc_duration_seconds_sum"
+        ],
+        "groups": [
+          "runtime"
+        ]
+      },
+      "notes": "(share of wall time stopped for GC)"
+    },
+    {
+      "id": "runtime.gc_pause_quantiles",
+      "section": "Runtime",
+      "intents": [
+        "runtime"
+      ],
+      "title": "GC pause quantiles",
+      "panel": "timeseries",
+      "unit": "s",
+      "targets": [
+        {
+          "expr": "max by (quantile) (go_gc_duration_seconds{J})",
+          "legend": "{{quantile}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "go_gc_duration_seconds"
+        ],
+        "groups": [
+          "runtime"
+        ]
+      }
+    },
+    {
+      "id": "runtime.gc_pause_p99",
+      "section": "Runtime",
+      "intents": [
+        "runtime"
+      ],
+      "title": "GC pause p99",
+      "panel": "timeseries",
+      "unit": "s",
+      "targets": [
+        {
+          "expr": "max by (instance) (go_gc_duration_seconds{J, quantile=\"1.0\"})",
+          "legend": "{{instance}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "go_gc_duration_seconds"
+        ],
+        "groups": [
+          "runtime"
+        ]
+      },
+      "notes": "(quantile 1.0 = longest recent pause)"
+    },
+    {
+      "id": "runtime.gogc",
+      "section": "Runtime",
+      "intents": [
+        "runtime"
+      ],
+      "title": "GOGC",
+      "panel": "stat",
+      "unit": "short",
+      "targets": [
+        {
+          "expr": "max(go_gc_gogc_percent{J})",
+          "legend": "GOGC"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "go_gc_gogc_percent"
+        ],
+        "groups": [
+          "runtime"
+        ]
+      }
+    },
+    {
+      "id": "runtime.goroutines",
+      "section": "Runtime",
+      "intents": [
+        "runtime",
+        "overview"
+      ],
+      "title": "Goroutines",
+      "panel": "timeseries",
+      "unit": "short",
+      "targets": [
+        {
+          "expr": "sum by (instance) (go_goroutines{J})",
+          "legend": "{{instance}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "go_goroutines"
+        ],
+        "groups": [
+          "runtime"
+        ]
+      }
+    },
+    {
+      "id": "runtime.threads",
+      "section": "Runtime",
+      "intents": [
+        "runtime"
+      ],
+      "title": "OS threads",
+      "panel": "timeseries",
+      "unit": "short",
+      "targets": [
+        {
+          "expr": "sum by (instance) (go_threads{J})",
+          "legend": "{{instance}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "go_threads"
+        ],
+        "groups": [
+          "runtime"
+        ]
+      }
+    },
+    {
+      "id": "runtime.open_fds",
+      "section": "Runtime",
+      "intents": [
+        "runtime"
+      ],
+      "title": "Open file descriptors",
+      "panel": "timeseries",
+      "unit": "short",
+      "targets": [
+        {
+          "expr": "sum by (instance) (process_open_fds{J})",
+          "legend": "{{instance}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "process_open_fds"
+        ],
+        "groups": [
+          "runtime"
+        ]
+      }
+    },
+    {
+      "id": "runtime.fd_usage",
+      "section": "Runtime",
+      "intents": [
+        "runtime"
+      ],
+      "title": "File descriptors used",
+      "panel": "gauge",
+      "unit": "percentunit",
+      "targets": [
+        {
+          "expr": "max by (instance) (process_open_fds{J} / process_max_fds{J})",
+          "legend": "{{instance}}"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "process_max_fds",
+          "process_open_fds"
+        ],
+        "groups": [
+          "runtime"
+        ]
+      },
+      "thresholds": [
+        {
+          "color": "green",
+          "value": null
+        },
+        {
+          "color": "orange",
+          "value": 0.7
+        },
+        {
+          "color": "red",
+          "value": 0.9
+        }
+      ]
+    },
+    {
+      "id": "runtime.network_io",
+      "section": "Runtime",
+      "intents": [
+        "runtime"
+      ],
+      "title": "Network I/O",
+      "panel": "timeseries",
+      "unit": "Bps",
+      "targets": [
+        {
+          "expr": "sum(rate(process_network_receive_bytes_total{J}[$__rate_interval]))",
+          "legend": "Received"
+        },
+        {
+          "expr": "sum(rate(process_network_transmit_bytes_total{J}[$__rate_interval]))",
+          "legend": "Sent"
+        }
+      ],
+      "requires": {
+        "metrics": [
+          "process_network_receive_bytes_total",
+          "process_network_transmit_bytes_total"
+        ],
+        "groups": [
+          "runtime"
+        ]
+      },
+      "agent_notes": "Linux only: empty on macOS/Windows dev machines, present in Linux containers and servers; keep it"
+    }
+  ]
+}

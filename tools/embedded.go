@@ -12,10 +12,12 @@ import (
 // - KrakenD documentation (offline documentation search)
 // - Bleve search index (pre-built for instant search)
 // - Feature matrix YAML (offline feature discovery; downloaded by build.sh)
+// - Observability catalog and PromQL recipes (generated from a real KrakenD run, committed)
 
 //go:embed data/docs/*
 //go:embed data/search/index/*
 //go:embed all:data/features
+//go:embed data/observability/*
 var embeddedFS embed.FS
 
 // embeddedDataProvider implements DataProvider using embed.FS.

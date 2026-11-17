@@ -93,7 +93,7 @@ claude mcp add -s user krakend -- /usr/local/bin/krakend-mcp-server
 
 3. Restart Claude Code and check the server is connected with `/mcp`
 
-**Tools available**: All 7 MCP tools (validate, audit, features, search docs, etc.)
+**Tools available**: All 11 MCP tools (validate, audit, features, search docs, observability, etc.)
 
 ---
 
@@ -296,7 +296,7 @@ rm -rf ~/.krakend-mcp/docs/ ~/.krakend-mcp/search/
 
 ## MCP Tools
 
-The server exposes 7 specialized tools:
+The server exposes 11 specialized tools:
 
 ### Validation & Security
 
@@ -324,6 +324,22 @@ The server exposes 7 specialized tools:
 |------|-------------|
 | `search_documentation` | Full-text search through KrakenD documentation (powered by Bleve) |
 | `refresh_documentation_index` | Update documentation cache (auto-runs if cache > 7 days old) |
+
+### Observability (Grafana dashboards)
+
+| Tool | Description |
+|------|-------------|
+| `get_metrics_catalog` | What KrakenD metrics mean as exposed in Prometheus: names, OTel instruments, types, units, labels, the config that enables them, edition and gotchas. Filter by `groups`, `query` or exact `names`; returns default or semantic convention 1.27 names (`semantic_convention: auto` + `metric_names`) |
+| `analyze_config_observability` | Predict the metrics a rendered config exposes: enabled metric groups, label values to expect (endpoint/backend routes, hosts, circuit breaker names, LLM providers/models, Kafka topics, Redis pools), rate-limited endpoints, warnings, and config gaps with snippets |
+| `get_dashboard_recipes` | Tested PromQL recipes by intent (`overview`, `traffic`, `latency`, `layers`, `errors`, `backends`, `resilience`, `quotas`, `ai`, `websocket`, `kafka`, `agents`, `redis`, `runtime`, `all`), plus the row layout of topic dashboards (`overview`, `runtime`, `backends`, `agents`). Renders selectors for your scrape labels, converts to OpenTelemetry semantic convention 1.27 names (`semantic_convention: auto` + `metric_names`), drops recipes the config or Prometheus can't feed. Optionally returns ready Grafana panel JSON, inline or written to a `panels_file` in the project |
+| `lint_dashboard` | Check a Grafana dashboard JSON (file path or string) before pushing it: unknown or misspelled KrakenD metrics, PromQL mistakes (`histogram_quantile` without `le`, `rate()` over gauges, `$__interval` in rates), undefined or unused variables, datasource, scrape labels and hostnames hardcoded instead of variables, overlapping panels, uid prefix and required tags. `expand: true` returns every query with variables replaced, ready to run against Prometheus |
+
+These tools read `tools/data/observability/catalog.json` and `recipes.json`, embedded in the
+binary. `catalog.json` is generated from a real KrakenD run with every component enabled and
+traffic through every feature; `recipes.json` is generated from the hand-edited sources in
+[`observability/`](observability/README.md) with `go run ./cmd/observability-recipes`.
+None of the tools talks to Prometheus or Grafana: pair them with a Grafana MCP server for discovery and pushing dashboards
+(the [KrakenD Observability plugin](https://github.com/krakend/claude-code-plugin) for Claude Code does this).
 
 ## Usage Examples
 
@@ -452,7 +468,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
 │  ├─ Security Audit  │
 │  ├─ Features        │
 │  ├─ Runtime         │
-│  └─ Docs Search     │
+│  ├─ Docs Search     │
+│  └─ Observability   │
 └──────────┬──────────┘
            │
            ↓
@@ -462,6 +479,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
 │  ├─ Feature Catalog │
 │  ├─ Edition Matrix  │
 │  ├─ Documentation   │
+│  ├─ Metrics Catalog │
 │  └─ Best Practices  │
 └─────────────────────┘
 ```
@@ -484,7 +502,7 @@ Examples:
 This project is in active development. Current status:
 
 - ✅ Core MCP server implementation
-- ✅ All 7 tools functional and tested
+- ✅ All 11 tools functional and tested
 - ✅ Cross-platform builds (macOS, Linux, Windows)
 - ✅ Embedded documentation with offline search
 - ✅ **Automated testing suite** with CI/CD (28% coverage, threshold: 20%)
@@ -516,6 +534,8 @@ Current test coverage: **28%** (minimum threshold: 20%)
 - Flexible Configuration detection
 - Documentation parsing and indexing
 - Data provider abstraction (interface pattern with mocks)
+- Observability: config analysis, recipe rendering and semantic convention conversion against real
+  Prometheus scrapes, the dashboard linter, and that `recipes.json` matches its sources
 
 **Future improvements:**
 1. **Integration tests** for each MCP tool with real-world configs

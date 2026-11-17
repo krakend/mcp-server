@@ -1,0 +1,1524 @@
+{
+  "_about": "KrakenD metrics as exposed by the telemetry/opentelemetry Prometheus exporter. GENERATED from a real KrakenD run with every component enabled and traffic through every feature. Names are Prometheus names; otel_name is the instrument. Installations can differ: ALWAYS confirm with list_prometheus_metric_names first.",
+  "krakend_version": "KrakenD EE 3.0",
+  "generated": "2026-11-13",
+  "scrape_labels": {
+    "job": "Prometheus job name (from the scrape config).",
+    "instance": "host:port of the KrakenD metrics exporter. One per node.",
+    "app": "Optional static label used by the official grafana.com dashboards. Only exists if the user's scrape config adds it."
+  },
+  "semantic_conventions": {
+    "option": "telemetry/opentelemetry layers.global.semantic_convention: \"\" (default) | \"1.27\"",
+    "detect": "list_prometheus_metric_names: http_server_duration_bucket -> default; http_server_request_duration_seconds_bucket -> 1.27. Then use each metric's semconv_1_27.name instead of name when present.",
+    "changed_metrics": 9
+  },
+  "label_meanings": {
+    "http_route": "global/proxy layers: the KrakenD ENDPOINT pattern with :param syntax (/users/:id). Requests that match no endpoint get the status text instead: \"404 Not Found\", and KrakenD's own /__debug/ and /__echo/ calls show up as \"200 OK\". backend/http_client layers: the BACKEND url_pattern.",
+    "krakend_endpoint_route": "backend/http_client layers: the KrakenD endpoint the backend call belongs to.",
+    "krakend_endpoint_method": "backend/http_client layers: method of the KrakenD endpoint.",
+    "http_request_method": "HTTP method at that layer.",
+    "http_response_status_code": "Status code. Global layer: what the client got. http_client: what the backend returned; \"0\" = no response (timeout/connection error).",
+    "server_address": "http_client: backend host.",
+    "server_port": "http_client: backend port.",
+    "clientname": "http_client: duplicate of the backend url_pattern. Ignore.",
+    "url_scheme": "global: http or https.",
+    "error": "proxy/backend: \"true\" when the layer returned an error.",
+    "canceled": "proxy/backend: \"true\" when the context was canceled.",
+    "complete": "proxy/backend: \"false\" = partial aggregated response.",
+    "cb_name": "Circuit breaker name ('unnamed' when not set in config). Name your breakers.",
+    "count": "Circuit breaker counter kind; redundant with the metric name.",
+    "pool_name": "Redis pool address (host:port), not the configured pool name.",
+    "db_system": "Always \"redis\".",
+    "state": "db_client_connections_usage: idle | used.",
+    "type": "db_client_connections_use_time: command | pipeline.",
+    "status": "db_client_connections_*: ok | error.",
+    "error_type": "db_client_connections_*: none | other | ...",
+    "messaging_kind": "Messaging backend kind (kafka).",
+    "messaging_topic": "Topic name.",
+    "messaging_origin": "subscriber (read side).",
+    "messaging_read_acked": "Whether the consumed message was ACKed.",
+    "messaging_read_processed": "Whether the consumed message was processed.",
+    "url_path": "websocket_client_*: full backend ws:// URL.",
+    "provider": "LLM vendor (openai, anthropic, gemini, mistral, bedrock, alibaba).",
+    "model": "LLM model name as sent to the vendor.",
+    "krakend_promptguard_blocked": "\"true\" when the prompt was blocked.",
+    "krakend_backend": "Backend url_pattern where the guard ran; empty for endpoint-level guards."
+  },
+  "groups": {
+    "global": {
+      "edition": "ce+ee",
+      "enabled_by": "telemetry/opentelemetry layers.global.disable_metrics=false (default)"
+    },
+    "proxy": {
+      "edition": "ce+ee",
+      "enabled_by": "telemetry/opentelemetry layers.proxy.disable_metrics=false (default)"
+    },
+    "backend": {
+      "edition": "ce+ee",
+      "enabled_by": "telemetry/opentelemetry layers.backend.metrics.disable_stage=false (default)"
+    },
+    "backend-roundtrip": {
+      "edition": "ce+ee",
+      "enabled_by": "layers.backend.metrics.round_trip=true (default false)",
+      "lazy": "Registered on the first backend call; absent from a gateway that hasn't proxied anything yet."
+    },
+    "backend-connection": {
+      "edition": "ce+ee",
+      "enabled_by": "layers.backend.metrics.detailed_connection=true (default false)",
+      "lazy": "Registered on the first backend call. Points only appear when a new connection is opened (keep-alive reuses connections)."
+    },
+    "backend-payload": {
+      "edition": "ce+ee",
+      "enabled_by": "layers.backend.metrics.read_payload=true (default false)",
+      "lazy": "Registered on the first backend call."
+    },
+    "circuit-breaker": {
+      "edition": "ee",
+      "enabled_by": "qos/circuit-breaker or qos/circuit-breaker/http on a backend (label cb_name = the breaker's name, 'unnamed' if not set)"
+    },
+    "redis-pool": {
+      "edition": "ee",
+      "enabled_by": "redis.connection_pools / redis.clusters (per pool: opentelemetry.disable_metrics=false, default). Used by redis rate limits, quotas, semantic cache."
+    },
+    "messaging": {
+      "edition": "ee",
+      "enabled_by": "backend/pubsub/publisher/kafka and backend/pubsub/subscriber/kafka. Generic backend/pubsub/* (NATS, SQS, ...) and backend/amqp/* emit no messaging metrics (KrakenD EE 3.0)."
+    },
+    "websocket": {
+      "edition": "ee",
+      "enabled_by": "websocket on an endpoint (websocket.disable_otel_metrics=false, default)"
+    },
+    "ai": {
+      "edition": "ee",
+      "enabled_by": "ai/llm or ai/router backends (tokens), ai/prompt-guard (checks)"
+    }
+  },
+  "metrics": [
+    {
+      "otel_name": "db.client.connections.create_time",
+      "name": "db_client_connections_create_time_milliseconds",
+      "type": "histogram",
+      "unit": "milliseconds",
+      "group": "redis-pool",
+      "labels": [
+        "db_system",
+        "error_type",
+        "pool_name",
+        "status"
+      ],
+      "meaning": "Time to create a new Redis connection (ms).",
+      "enabled_by": "redis.connection_pools / redis.clusters (per pool: opentelemetry.disable_metrics=false, default). Used by redis rate limits, quotas, semantic cache.",
+      "edition": "ee",
+      "observed": true,
+      "help": "The time it took to create a new connection.",
+      "series": [
+        "db_client_connections_create_time_milliseconds_bucket",
+        "db_client_connections_create_time_milliseconds_count",
+        "db_client_connections_create_time_milliseconds_sum"
+      ]
+    },
+    {
+      "otel_name": "db.client.connections.hits",
+      "name": "db_client_connections_hits",
+      "type": "gauge",
+      "unit": null,
+      "group": "redis-pool",
+      "labels": [
+        "db_system",
+        "pool_name"
+      ],
+      "meaning": "Times a free connection was found in the pool (cumulative, exported as gauge: use deriv()/delta(), not rate()).",
+      "enabled_by": "redis.connection_pools / redis.clusters (per pool: opentelemetry.disable_metrics=false, default). Used by redis rate limits, quotas, semantic cache.",
+      "edition": "ee",
+      "observed": true,
+      "help": "The number of times free connection was found in the pool"
+    },
+    {
+      "otel_name": "db.client.connections.idle.max",
+      "name": "db_client_connections_idle_max",
+      "type": "gauge",
+      "unit": null,
+      "group": "redis-pool",
+      "labels": [
+        "db_system",
+        "pool_name"
+      ],
+      "meaning": "Max idle connections allowed.",
+      "enabled_by": "redis.connection_pools / redis.clusters (per pool: opentelemetry.disable_metrics=false, default). Used by redis rate limits, quotas, semantic cache.",
+      "edition": "ee",
+      "observed": true,
+      "help": "The maximum number of idle open connections allowed"
+    },
+    {
+      "otel_name": "db.client.connections.idle.min",
+      "name": "db_client_connections_idle_min",
+      "type": "gauge",
+      "unit": null,
+      "group": "redis-pool",
+      "labels": [
+        "db_system",
+        "pool_name"
+      ],
+      "meaning": "Min idle connections kept.",
+      "enabled_by": "redis.connection_pools / redis.clusters (per pool: opentelemetry.disable_metrics=false, default). Used by redis rate limits, quotas, semantic cache.",
+      "edition": "ee",
+      "observed": true,
+      "help": "The minimum number of idle open connections allowed"
+    },
+    {
+      "otel_name": "db.client.connections.max",
+      "name": "db_client_connections_max",
+      "type": "gauge",
+      "unit": null,
+      "group": "redis-pool",
+      "labels": [
+        "db_system",
+        "pool_name"
+      ],
+      "meaning": "Max open connections allowed (pool_size).",
+      "enabled_by": "redis.connection_pools / redis.clusters (per pool: opentelemetry.disable_metrics=false, default). Used by redis rate limits, quotas, semantic cache.",
+      "edition": "ee",
+      "observed": true,
+      "help": "The maximum number of open connections allowed"
+    },
+    {
+      "otel_name": "db.client.connections.misses",
+      "name": "db_client_connections_misses",
+      "type": "gauge",
+      "unit": null,
+      "group": "redis-pool",
+      "labels": [
+        "db_system",
+        "pool_name"
+      ],
+      "meaning": "Times no free connection was found and a new one had to be created (cumulative gauge).",
+      "enabled_by": "redis.connection_pools / redis.clusters (per pool: opentelemetry.disable_metrics=false, default). Used by redis rate limits, quotas, semantic cache.",
+      "edition": "ee",
+      "observed": true,
+      "help": "The number of times free connection was not found in the pool"
+    },
+    {
+      "otel_name": "db.client.connections.timeouts",
+      "name": "db_client_connections_timeouts",
+      "type": "gauge",
+      "unit": null,
+      "group": "redis-pool",
+      "labels": [
+        "db_system",
+        "pool_name"
+      ],
+      "meaning": "Timeouts obtaining a connection from the pool (cumulative gauge). Any growth = Redis-backed features (rate limit, quota) degraded.",
+      "enabled_by": "redis.connection_pools / redis.clusters (per pool: opentelemetry.disable_metrics=false, default). Used by redis rate limits, quotas, semantic cache.",
+      "edition": "ee",
+      "observed": true,
+      "help": "The number of connection timeouts that have occurred trying to obtain a connection from the pool"
+    },
+    {
+      "otel_name": "db.client.connections.usage",
+      "name": "db_client_connections_usage",
+      "type": "gauge",
+      "unit": null,
+      "group": "redis-pool",
+      "labels": [
+        "db_system",
+        "pool_name",
+        "state"
+      ],
+      "meaning": "Connections currently in each state (state=idle|used). used / max = pool saturation.",
+      "enabled_by": "redis.connection_pools / redis.clusters (per pool: opentelemetry.disable_metrics=false, default). Used by redis rate limits, quotas, semantic cache.",
+      "edition": "ee",
+      "observed": true,
+      "help": "The number of connections that are currently in state described by the state attribute"
+    },
+    {
+      "otel_name": "db.client.connections.use_time",
+      "name": "db_client_connections_use_time_milliseconds",
+      "type": "histogram",
+      "unit": "milliseconds",
+      "group": "redis-pool",
+      "labels": [
+        "db_system",
+        "error_type",
+        "pool_name",
+        "status",
+        "type"
+      ],
+      "meaning": "Time between borrowing and returning a connection (ms), by type=command|pipeline and status=ok|error. Effectively Redis command latency as seen by KrakenD.",
+      "enabled_by": "redis.connection_pools / redis.clusters (per pool: opentelemetry.disable_metrics=false, default). Used by redis rate limits, quotas, semantic cache.",
+      "edition": "ee",
+      "observed": true,
+      "help": "The time between borrowing a connection and returning it to the pool.",
+      "series": [
+        "db_client_connections_use_time_milliseconds_bucket",
+        "db_client_connections_use_time_milliseconds_count",
+        "db_client_connections_use_time_milliseconds_sum"
+      ]
+    },
+    {
+      "otel_name": "db.client.connections.waits",
+      "name": "db_client_connections_waits",
+      "type": "gauge",
+      "unit": null,
+      "group": "redis-pool",
+      "labels": [
+        "db_system",
+        "pool_name"
+      ],
+      "meaning": "Times a caller had to wait for a connection (cumulative gauge). Growth = pool too small.",
+      "enabled_by": "redis.connection_pools / redis.clusters (per pool: opentelemetry.disable_metrics=false, default). Used by redis rate limits, quotas, semantic cache.",
+      "edition": "ee",
+      "observed": true,
+      "help": "The number of times a connection was waited for"
+    },
+    {
+      "otel_name": "db.client.connections.waits_duration",
+      "name": "db_client_connections_waits_duration_nanoseconds",
+      "type": "gauge",
+      "unit": "nanoseconds",
+      "group": "redis-pool",
+      "labels": [
+        "db_system",
+        "pool_name"
+      ],
+      "meaning": "Total time spent waiting for connections, in nanoseconds (cumulative gauge).",
+      "enabled_by": "redis.connection_pools / redis.clusters (per pool: opentelemetry.disable_metrics=false, default). Used by redis rate limits, quotas, semantic cache.",
+      "edition": "ee",
+      "observed": true,
+      "help": "The total time spent for waiting a connection in nanoseconds"
+    },
+    {
+      "otel_name": "http.client.duration",
+      "name": "http_client_duration",
+      "type": "histogram",
+      "unit": null,
+      "group": "backend-roundtrip",
+      "labels": [
+        "clientname",
+        "http_request_method",
+        "http_response_status_code",
+        "http_route",
+        "krakend_endpoint_method",
+        "krakend_endpoint_route",
+        "server_address",
+        "server_port"
+      ],
+      "meaning": "Pure HTTP round trip to the backend (until response headers). Best for 'which backend service is slow' (by server_address) and backend status codes. Status 0 = no response (timeout, connection error).",
+      "enabled_by": "layers.backend.metrics.round_trip=true (default false)",
+      "edition": "ce+ee",
+      "observed": true,
+      "notes": "Registered on the first backend call; absent from a gateway that hasn't proxied anything yet.",
+      "series": [
+        "http_client_duration_bucket",
+        "http_client_duration_count",
+        "http_client_duration_sum"
+      ],
+      "semconv_1_27": {
+        "otel_name": "http.client.request.duration",
+        "name": "http_client_request_duration_seconds",
+        "type": "histogram",
+        "unit": "seconds",
+        "series": [
+          "http_client_request_duration_seconds_bucket",
+          "http_client_request_duration_seconds_count",
+          "http_client_request_duration_seconds_sum"
+        ]
+      }
+    },
+    {
+      "otel_name": "http.client.request.canceled.count",
+      "name": "http_client_request_canceled_count_total",
+      "type": "counter",
+      "unit": null,
+      "group": "backend-roundtrip",
+      "labels": [],
+      "meaning": "Backend requests canceled before completion (client went away, sibling failure in an aggregation).",
+      "enabled_by": "layers.backend.metrics.round_trip=true (default false)",
+      "edition": "ce+ee",
+      "observed": false,
+      "notes": "Registered on the first backend call; absent from a gateway that hasn't proxied anything yet. Only exported after the first occurrence of the event.",
+      "predicted_name": true
+    },
+    {
+      "otel_name": "http.client.request.dns.duration",
+      "name": "http_client_request_dns_duration",
+      "type": "histogram",
+      "unit": null,
+      "group": "backend-connection",
+      "labels": [
+        "clientname",
+        "http_request_method",
+        "http_response_status_code",
+        "http_route",
+        "krakend_endpoint_method",
+        "krakend_endpoint_route",
+        "server_address",
+        "server_port"
+      ],
+      "meaning": "DNS resolution time for backend calls.",
+      "enabled_by": "layers.backend.metrics.detailed_connection=true (default false)",
+      "edition": "ce+ee",
+      "observed": true,
+      "notes": "Registered on the first backend call. Points only appear when a new connection is opened (keep-alive reuses connections).",
+      "series": [
+        "http_client_request_dns_duration_bucket",
+        "http_client_request_dns_duration_count",
+        "http_client_request_dns_duration_sum"
+      ],
+      "semconv_1_27": {
+        "otel_name": "http.client.request.dns.duration",
+        "name": "http_client_request_dns_duration_seconds",
+        "type": "histogram",
+        "unit": "seconds",
+        "series": [
+          "http_client_request_dns_duration_seconds_bucket",
+          "http_client_request_dns_duration_seconds_count",
+          "http_client_request_dns_duration_seconds_sum"
+        ]
+      }
+    },
+    {
+      "otel_name": "http.client.request.failed.count",
+      "name": "http_client_request_failed_count_total",
+      "type": "counter",
+      "unit": null,
+      "group": "backend-roundtrip",
+      "labels": [
+        "clientname",
+        "http_request_method",
+        "http_response_status_code",
+        "http_route",
+        "krakend_endpoint_method",
+        "krakend_endpoint_route",
+        "server_address",
+        "server_port"
+      ],
+      "meaning": "Backend requests that failed at transport level (connection refused/reset, auth token fetch failure...). A backend 5xx is NOT a failure here.",
+      "enabled_by": "layers.backend.metrics.round_trip=true (default false)",
+      "edition": "ce+ee",
+      "observed": true,
+      "notes": "Registered on the first backend call; absent from a gateway that hasn't proxied anything yet. Only exported after the first occurrence of the event."
+    },
+    {
+      "otel_name": "http.client.request.get-conn.duration",
+      "name": "http_client_request_get_conn_duration",
+      "type": "histogram",
+      "unit": null,
+      "group": "backend-connection",
+      "labels": [
+        "clientname",
+        "http_request_method",
+        "http_response_status_code",
+        "http_route",
+        "krakend_endpoint_method",
+        "krakend_endpoint_route",
+        "server_address",
+        "server_port"
+      ],
+      "meaning": "Time to obtain a connection from the pool or dial a new one. High = pool exhaustion or slow connects.",
+      "enabled_by": "layers.backend.metrics.detailed_connection=true (default false)",
+      "edition": "ce+ee",
+      "observed": true,
+      "notes": "Registered on the first backend call. Points only appear when a new connection is opened (keep-alive reuses connections).",
+      "series": [
+        "http_client_request_get_conn_duration_bucket",
+        "http_client_request_get_conn_duration_count",
+        "http_client_request_get_conn_duration_sum"
+      ],
+      "semconv_1_27": {
+        "otel_name": "http.client.request.get-conn.duration",
+        "name": "http_client_request_get_conn_duration_seconds",
+        "type": "histogram",
+        "unit": "seconds",
+        "series": [
+          "http_client_request_get_conn_duration_seconds_bucket",
+          "http_client_request_get_conn_duration_seconds_count",
+          "http_client_request_get_conn_duration_seconds_sum"
+        ]
+      }
+    },
+    {
+      "otel_name": "http.client.request.size",
+      "name": "http_client_request_size_total",
+      "type": "counter",
+      "unit": null,
+      "group": "backend-roundtrip",
+      "labels": [
+        "clientname",
+        "http_request_method",
+        "http_response_status_code",
+        "http_route",
+        "krakend_endpoint_method",
+        "krakend_endpoint_route",
+        "server_address",
+        "server_port"
+      ],
+      "meaning": "Request body bytes sent to backends.",
+      "enabled_by": "layers.backend.metrics.round_trip=true (default false)",
+      "edition": "ce+ee",
+      "observed": true,
+      "notes": "Registered on the first backend call; absent from a gateway that hasn't proxied anything yet.",
+      "semconv_1_27": {
+        "otel_name": "http.client.request.body.size",
+        "name": "http_client_request_body_size_bytes",
+        "type": "histogram",
+        "unit": "bytes",
+        "series": [
+          "http_client_request_body_size_bytes_bucket",
+          "http_client_request_body_size_bytes_count",
+          "http_client_request_body_size_bytes_sum"
+        ]
+      }
+    },
+    {
+      "otel_name": "http.client.request.started.count",
+      "name": "http_client_request_started_count_total",
+      "type": "counter",
+      "unit": null,
+      "group": "backend-roundtrip",
+      "labels": [
+        "clientname",
+        "http_request_method",
+        "http_response_status_code",
+        "http_route",
+        "krakend_endpoint_method",
+        "krakend_endpoint_route",
+        "server_address",
+        "server_port"
+      ],
+      "meaning": "Backend requests started. rate() = backend request throughput.",
+      "enabled_by": "layers.backend.metrics.round_trip=true (default false)",
+      "edition": "ce+ee",
+      "observed": true,
+      "notes": "Registered on the first backend call; absent from a gateway that hasn't proxied anything yet."
+    },
+    {
+      "otel_name": "http.client.request.timedout.count",
+      "name": "http_client_request_timedout_count_total",
+      "type": "counter",
+      "unit": null,
+      "group": "backend-roundtrip",
+      "labels": [],
+      "meaning": "Backend requests aborted by KrakenD's timeout.",
+      "enabled_by": "layers.backend.metrics.round_trip=true (default false)",
+      "edition": "ce+ee",
+      "observed": false,
+      "notes": "Registered on the first backend call; absent from a gateway that hasn't proxied anything yet. Only exported after the first occurrence of the event.",
+      "predicted_name": true
+    },
+    {
+      "otel_name": "http.client.request.tls.duration",
+      "name": "http_client_request_tls_duration",
+      "type": "histogram",
+      "unit": null,
+      "group": "backend-connection",
+      "labels": [
+        "clientname",
+        "http_request_method",
+        "http_response_status_code",
+        "http_route",
+        "krakend_endpoint_method",
+        "krakend_endpoint_route",
+        "server_address",
+        "server_port"
+      ],
+      "meaning": "TLS handshake time to backends. Empty for plain HTTP backends.",
+      "enabled_by": "layers.backend.metrics.detailed_connection=true (default false)",
+      "edition": "ce+ee",
+      "observed": true,
+      "notes": "Registered on the first backend call. Points only appear when a new connection is opened (keep-alive reuses connections).",
+      "series": [
+        "http_client_request_tls_duration_bucket",
+        "http_client_request_tls_duration_count",
+        "http_client_request_tls_duration_sum"
+      ],
+      "semconv_1_27": {
+        "otel_name": "http.client.request.tls.duration",
+        "name": "http_client_request_tls_duration_seconds",
+        "type": "histogram",
+        "unit": "seconds",
+        "series": [
+          "http_client_request_tls_duration_seconds_bucket",
+          "http_client_request_tls_duration_seconds_count",
+          "http_client_request_tls_duration_seconds_sum"
+        ]
+      }
+    },
+    {
+      "otel_name": "http.client.response.no-content-length",
+      "name": "http_client_response_no_content_length_total",
+      "type": "counter",
+      "unit": null,
+      "group": "backend-roundtrip",
+      "labels": [
+        "clientname",
+        "http_request_method",
+        "http_response_status_code",
+        "http_route",
+        "krakend_endpoint_method",
+        "krakend_endpoint_route",
+        "server_address",
+        "server_port"
+      ],
+      "meaning": "Backend responses without a Content-Length header (chunked/streamed). Their size only shows in the read_payload metrics.",
+      "enabled_by": "layers.backend.metrics.round_trip=true (default false)",
+      "edition": "ce+ee",
+      "observed": true,
+      "notes": "Registered on the first backend call; absent from a gateway that hasn't proxied anything yet.",
+      "semconv_1_27": {
+        "otel_name": "http.client.response.no-content-length",
+        "name": "http_client_response_no_content_length_bytes_total",
+        "type": "counter",
+        "unit": "bytes"
+      }
+    },
+    {
+      "otel_name": "http.client.response.read.errors",
+      "name": "http_client_response_read_errors_total",
+      "type": "counter",
+      "unit": null,
+      "group": "backend-payload",
+      "labels": [],
+      "meaning": "Errors while reading backend response bodies (truncated/reset streams).",
+      "enabled_by": "layers.backend.metrics.read_payload=true (default false)",
+      "edition": "ce+ee",
+      "observed": false,
+      "notes": "Registered on the first backend call. Only exported after the first occurrence of the event.",
+      "predicted_name": true
+    },
+    {
+      "otel_name": "http.client.response.read.size",
+      "name": "http_client_response_read_size_b_total",
+      "type": "counter",
+      "unit": "bytes",
+      "group": "backend-payload",
+      "labels": [
+        "http_request_method",
+        "http_route",
+        "krakend_endpoint_method",
+        "krakend_endpoint_route"
+      ],
+      "meaning": "Total bytes read from backend response bodies. rate() = backend ingress bandwidth.",
+      "enabled_by": "layers.backend.metrics.read_payload=true (default false)",
+      "edition": "ce+ee",
+      "observed": true,
+      "notes": "Registered on the first backend call."
+    },
+    {
+      "otel_name": "http.client.response.read.size-hist",
+      "name": "http_client_response_read_size_hist_b",
+      "type": "histogram",
+      "unit": "bytes",
+      "group": "backend-payload",
+      "labels": [
+        "http_request_method",
+        "http_route",
+        "krakend_endpoint_method",
+        "krakend_endpoint_route"
+      ],
+      "meaning": "Distribution of bytes read per backend response body.",
+      "enabled_by": "layers.backend.metrics.read_payload=true (default false)",
+      "edition": "ce+ee",
+      "observed": true,
+      "notes": "Registered on the first backend call.",
+      "series": [
+        "http_client_response_read_size_hist_b_bucket",
+        "http_client_response_read_size_hist_b_count",
+        "http_client_response_read_size_hist_b_sum"
+      ]
+    },
+    {
+      "otel_name": "http.client.response.read.time",
+      "name": "http_client_response_read_time_seconds_total",
+      "type": "counter",
+      "unit": "seconds",
+      "group": "backend-payload",
+      "labels": [
+        "http_request_method",
+        "http_route",
+        "krakend_endpoint_method",
+        "krakend_endpoint_route"
+      ],
+      "meaning": "Cumulative time spent reading backend bodies.",
+      "enabled_by": "layers.backend.metrics.read_payload=true (default false)",
+      "edition": "ce+ee",
+      "observed": true,
+      "notes": "Registered on the first backend call."
+    },
+    {
+      "otel_name": "http.client.response.read.time-hist",
+      "name": "http_client_response_read_time_hist_seconds",
+      "type": "histogram",
+      "unit": "seconds",
+      "group": "backend-payload",
+      "labels": [
+        "http_request_method",
+        "http_route",
+        "krakend_endpoint_method",
+        "krakend_endpoint_route"
+      ],
+      "meaning": "Distribution of body read time per backend response. Large = big or slow-streaming payloads.",
+      "enabled_by": "layers.backend.metrics.read_payload=true (default false)",
+      "edition": "ce+ee",
+      "observed": true,
+      "notes": "Registered on the first backend call.",
+      "series": [
+        "http_client_response_read_time_hist_seconds_bucket",
+        "http_client_response_read_time_hist_seconds_count",
+        "http_client_response_read_time_hist_seconds_sum"
+      ]
+    },
+    {
+      "otel_name": "http.client.response.size",
+      "name": "http_client_response_size",
+      "type": "histogram",
+      "unit": null,
+      "group": "backend-roundtrip",
+      "labels": [
+        "clientname",
+        "http_request_method",
+        "http_response_status_code",
+        "http_route",
+        "krakend_endpoint_method",
+        "krakend_endpoint_route",
+        "server_address",
+        "server_port"
+      ],
+      "meaning": "Backend response size as declared by Content-Length. Only recorded when the backend sends Content-Length (see no-content-length).",
+      "enabled_by": "layers.backend.metrics.round_trip=true (default false)",
+      "edition": "ce+ee",
+      "observed": true,
+      "notes": "Registered on the first backend call; absent from a gateway that hasn't proxied anything yet.",
+      "series": [
+        "http_client_response_size_bucket",
+        "http_client_response_size_count",
+        "http_client_response_size_sum"
+      ],
+      "semconv_1_27": {
+        "otel_name": "http.client.response.body.size",
+        "name": "http_client_response_body_size_bytes",
+        "type": "histogram",
+        "unit": "bytes",
+        "series": [
+          "http_client_response_body_size_bytes_bucket",
+          "http_client_response_body_size_bytes_count",
+          "http_client_response_body_size_bytes_sum"
+        ]
+      }
+    },
+    {
+      "otel_name": "http.server.duration",
+      "name": "http_server_duration",
+      "type": "histogram",
+      "unit": null,
+      "group": "global",
+      "labels": [
+        "http_request_method",
+        "http_response_status_code",
+        "http_route",
+        "url_scheme"
+      ],
+      "meaning": "End-to-end time per request as seen by the client (router + proxy + backends). THE metric for request rate (_count), error rate (status >= 500), status split and user-facing latency.",
+      "enabled_by": "telemetry/opentelemetry layers.global.disable_metrics=false (default)",
+      "edition": "ce+ee",
+      "observed": true,
+      "series": [
+        "http_server_duration_bucket",
+        "http_server_duration_count",
+        "http_server_duration_sum"
+      ],
+      "semconv_1_27": {
+        "otel_name": "http.server.request.duration",
+        "name": "http_server_request_duration_seconds",
+        "type": "histogram",
+        "unit": "seconds",
+        "series": [
+          "http_server_request_duration_seconds_bucket",
+          "http_server_request_duration_seconds_count",
+          "http_server_request_duration_seconds_sum"
+        ]
+      }
+    },
+    {
+      "otel_name": "http.server.response.size",
+      "name": "http_server_response_size",
+      "type": "histogram",
+      "unit": null,
+      "group": "global",
+      "labels": [
+        "http_request_method",
+        "http_response_status_code",
+        "http_route",
+        "url_scheme"
+      ],
+      "meaning": "Response body size sent to clients. rate(_sum) = egress bandwidth.",
+      "enabled_by": "telemetry/opentelemetry layers.global.disable_metrics=false (default)",
+      "edition": "ce+ee",
+      "observed": true,
+      "series": [
+        "http_server_response_size_bucket",
+        "http_server_response_size_count",
+        "http_server_response_size_sum"
+      ],
+      "semconv_1_27": {
+        "otel_name": "http.server.response.body.size",
+        "name": "http_server_response_body_size_bytes",
+        "type": "histogram",
+        "unit": "bytes",
+        "series": [
+          "http_server_response_body_size_bytes_bucket",
+          "http_server_response_body_size_bytes_count",
+          "http_server_response_body_size_bytes_sum"
+        ]
+      }
+    },
+    {
+      "otel_name": "krakend.backend.duration",
+      "name": "krakend_backend_duration",
+      "type": "histogram",
+      "unit": null,
+      "group": "backend",
+      "labels": [
+        "canceled",
+        "complete",
+        "error",
+        "http_request_method",
+        "http_route",
+        "krakend_endpoint_method",
+        "krakend_endpoint_route"
+      ],
+      "meaning": "Time per backend call including KrakenD's backend-side processing (decoding, filtering). http_route = backend url_pattern; group by krakend_endpoint_route for the endpoint. error=\"true\" = failed backend call.",
+      "enabled_by": "telemetry/opentelemetry layers.backend.metrics.disable_stage=false (default)",
+      "edition": "ce+ee",
+      "observed": true,
+      "series": [
+        "krakend_backend_duration_bucket",
+        "krakend_backend_duration_count",
+        "krakend_backend_duration_sum"
+      ]
+    },
+    {
+      "otel_name": "krakend.cb.errors.consecutive-failures",
+      "name": "krakend_cb_errors_consecutive_failures",
+      "type": "gauge",
+      "unit": null,
+      "group": "circuit-breaker",
+      "labels": [
+        "cb_name",
+        "count"
+      ],
+      "meaning": "Current consecutive failures counted by the breaker (gauge).",
+      "enabled_by": "qos/circuit-breaker or qos/circuit-breaker/http on a backend (label cb_name = the breaker's name, 'unnamed' if not set)",
+      "edition": "ee",
+      "observed": true
+    },
+    {
+      "otel_name": "krakend.cb.errors.consecutive-successes",
+      "name": "krakend_cb_errors_consecutive_successes",
+      "type": "gauge",
+      "unit": null,
+      "group": "circuit-breaker",
+      "labels": [
+        "cb_name",
+        "count"
+      ],
+      "meaning": "Current consecutive successes (gauge).",
+      "enabled_by": "qos/circuit-breaker or qos/circuit-breaker/http on a backend (label cb_name = the breaker's name, 'unnamed' if not set)",
+      "edition": "ee",
+      "observed": true
+    },
+    {
+      "otel_name": "krakend.cb.errors.requests",
+      "name": "krakend_cb_errors_requests",
+      "type": "gauge",
+      "unit": "requests",
+      "group": "circuit-breaker",
+      "labels": [
+        "cb_name",
+        "count"
+      ],
+      "meaning": "Requests counted in the current breaker interval (gauge).",
+      "enabled_by": "qos/circuit-breaker or qos/circuit-breaker/http on a backend (label cb_name = the breaker's name, 'unnamed' if not set)",
+      "edition": "ee",
+      "observed": true
+    },
+    {
+      "otel_name": "krakend.cb.errors.total-exclusions",
+      "name": "krakend_cb_errors_total_exclusions",
+      "type": "gauge",
+      "unit": null,
+      "group": "circuit-breaker",
+      "labels": [
+        "cb_name",
+        "count"
+      ],
+      "meaning": "Requests excluded from breaker accounting in the current interval (gauge).",
+      "enabled_by": "qos/circuit-breaker or qos/circuit-breaker/http on a backend (label cb_name = the breaker's name, 'unnamed' if not set)",
+      "edition": "ee",
+      "observed": true
+    },
+    {
+      "otel_name": "krakend.cb.errors.total-failures",
+      "name": "krakend_cb_errors_total_failures",
+      "type": "gauge",
+      "unit": null,
+      "group": "circuit-breaker",
+      "labels": [
+        "cb_name",
+        "count"
+      ],
+      "meaning": "Failures in the current breaker interval (gauge).",
+      "enabled_by": "qos/circuit-breaker or qos/circuit-breaker/http on a backend (label cb_name = the breaker's name, 'unnamed' if not set)",
+      "edition": "ee",
+      "observed": true
+    },
+    {
+      "otel_name": "krakend.cb.errors.total-successes",
+      "name": "krakend_cb_errors_total_successes",
+      "type": "gauge",
+      "unit": null,
+      "group": "circuit-breaker",
+      "labels": [
+        "cb_name",
+        "count"
+      ],
+      "meaning": "Successes in the current breaker interval (gauge).",
+      "enabled_by": "qos/circuit-breaker or qos/circuit-breaker/http on a backend (label cb_name = the breaker's name, 'unnamed' if not set)",
+      "edition": "ee",
+      "observed": true
+    },
+    {
+      "otel_name": "krakend.cb.state.close-to-open",
+      "name": "krakend_cb_state_close_to_open_total",
+      "type": "counter",
+      "unit": null,
+      "group": "circuit-breaker",
+      "labels": [
+        "cb_name"
+      ],
+      "meaning": "Times a breaker OPENED from closed (started rejecting).",
+      "enabled_by": "qos/circuit-breaker or qos/circuit-breaker/http on a backend (label cb_name = the breaker's name, 'unnamed' if not set)",
+      "edition": "ee",
+      "observed": true
+    },
+    {
+      "otel_name": "krakend.cb.state.half-to-close",
+      "name": "krakend_cb_state_half_to_close_total",
+      "type": "counter",
+      "unit": null,
+      "group": "circuit-breaker",
+      "labels": [
+        "cb_name"
+      ],
+      "meaning": "Successful recoveries (half-open back to closed).",
+      "enabled_by": "qos/circuit-breaker or qos/circuit-breaker/http on a backend (label cb_name = the breaker's name, 'unnamed' if not set)",
+      "edition": "ee",
+      "observed": false,
+      "notes": "Only exported after the first occurrence of the event.",
+      "verified_name": "KrakenD EE 3.0, observed with a circuit breaker recovering"
+    },
+    {
+      "otel_name": "krakend.cb.state.half-to-open",
+      "name": "krakend_cb_state_half_to_open_total",
+      "type": "counter",
+      "unit": null,
+      "group": "circuit-breaker",
+      "labels": [
+        "cb_name"
+      ],
+      "meaning": "Failed recovery probes (half-open back to open). Steady growth = backend still down. Count this together with close-to-open for 'times opened'.",
+      "enabled_by": "qos/circuit-breaker or qos/circuit-breaker/http on a backend (label cb_name = the breaker's name, 'unnamed' if not set)",
+      "edition": "ee",
+      "observed": true
+    },
+    {
+      "otel_name": "krakend.cb.state.open-to-half",
+      "name": "krakend_cb_state_open_to_half_total",
+      "type": "counter",
+      "unit": null,
+      "group": "circuit-breaker",
+      "labels": [
+        "cb_name"
+      ],
+      "meaning": "Times a breaker moved from open to half-open (testing recovery).",
+      "enabled_by": "qos/circuit-breaker or qos/circuit-breaker/http on a backend (label cb_name = the breaker's name, 'unnamed' if not set)",
+      "edition": "ee",
+      "observed": true
+    },
+    {
+      "otel_name": "krakend.llm.tokens-in",
+      "name": "krakend_llm_tokens_in_total",
+      "type": "counter",
+      "unit": null,
+      "group": "ai",
+      "labels": [
+        "model",
+        "provider"
+      ],
+      "meaning": "Input (prompt) tokens consumed, by provider and model. Basis for LLM cost dashboards.",
+      "enabled_by": "ai/llm or ai/router backends (tokens), ai/prompt-guard (checks)",
+      "edition": "ee",
+      "observed": true
+    },
+    {
+      "otel_name": "krakend.llm.tokens-out",
+      "name": "krakend_llm_tokens_out_total",
+      "type": "counter",
+      "unit": null,
+      "group": "ai",
+      "labels": [
+        "model",
+        "provider"
+      ],
+      "meaning": "Output (completion) tokens, by provider and model.",
+      "enabled_by": "ai/llm or ai/router backends (tokens), ai/prompt-guard (checks)",
+      "edition": "ee",
+      "observed": true
+    },
+    {
+      "otel_name": "krakend.llm.tokens-total",
+      "name": "krakend_llm_tokens_total",
+      "type": "counter",
+      "unit": null,
+      "group": "ai",
+      "labels": [
+        "model",
+        "provider"
+      ],
+      "meaning": "Total tokens, by provider and model.",
+      "enabled_by": "ai/llm or ai/router backends (tokens), ai/prompt-guard (checks)",
+      "edition": "ee",
+      "observed": true
+    },
+    {
+      "otel_name": "krakend.promptguard.check",
+      "name": "krakend_promptguard_check_requests_total",
+      "type": "counter",
+      "unit": "requests",
+      "group": "ai",
+      "labels": [
+        "http_route",
+        "krakend_backend",
+        "krakend_promptguard_blocked"
+      ],
+      "meaning": "Prompt guard evaluations. krakend_promptguard_blocked=\"true\" = blocked prompt. http_route = endpoint; krakend_backend = backend url_pattern (empty when the guard is at endpoint level). Does not say which guard matched.",
+      "enabled_by": "ai/llm or ai/router backends (tokens), ai/prompt-guard (checks)",
+      "edition": "ee",
+      "observed": true
+    },
+    {
+      "otel_name": "krakend.proxy.duration",
+      "name": "krakend_proxy_duration",
+      "type": "histogram",
+      "unit": null,
+      "group": "proxy",
+      "labels": [
+        "canceled",
+        "complete",
+        "error",
+        "http_request_method",
+        "http_route"
+      ],
+      "meaning": "Time in the proxy pipe for an endpoint: backend fan-out, merge, manipulations. complete=\"false\" = partial (degraded) aggregated response. No status code label.",
+      "enabled_by": "telemetry/opentelemetry layers.proxy.disable_metrics=false (default)",
+      "edition": "ce+ee",
+      "observed": true,
+      "series": [
+        "krakend_proxy_duration_bucket",
+        "krakend_proxy_duration_count",
+        "krakend_proxy_duration_sum"
+      ]
+    },
+    {
+      "otel_name": "messaging.read.ack.duration",
+      "name": "messaging_read_ack_duration_seconds",
+      "type": "histogram",
+      "unit": "seconds",
+      "group": "messaging",
+      "labels": [
+        "messaging_kind",
+        "messaging_origin",
+        "messaging_read_acked",
+        "messaging_read_processed",
+        "messaging_topic"
+      ],
+      "meaning": "Time until a consumed message was ACKed (labels messaging_read_acked / messaging_read_processed).",
+      "enabled_by": "backend/pubsub/publisher/kafka and backend/pubsub/subscriber/kafka. Generic backend/pubsub/* (NATS, SQS, ...) and backend/amqp/* emit no messaging metrics (KrakenD EE 3.0).",
+      "edition": "ee",
+      "observed": true,
+      "help": "Time spent until ACKing the message",
+      "series": [
+        "messaging_read_ack_duration_seconds_bucket",
+        "messaging_read_ack_duration_seconds_count",
+        "messaging_read_ack_duration_seconds_sum"
+      ]
+    },
+    {
+      "otel_name": "messaging.read.body.duration",
+      "name": "messaging_read_body_duration_seconds",
+      "type": "histogram",
+      "unit": "seconds",
+      "group": "messaging",
+      "labels": [
+        "messaging_kind",
+        "messaging_origin",
+        "messaging_topic"
+      ],
+      "meaning": "Time reading a consumed message. _count = messages consumed.",
+      "enabled_by": "backend/pubsub/publisher/kafka and backend/pubsub/subscriber/kafka. Generic backend/pubsub/* (NATS, SQS, ...) and backend/amqp/* emit no messaging metrics (KrakenD EE 3.0).",
+      "edition": "ee",
+      "observed": true,
+      "help": "Time spent reading message",
+      "series": [
+        "messaging_read_body_duration_seconds_bucket",
+        "messaging_read_body_duration_seconds_count",
+        "messaging_read_body_duration_seconds_sum"
+      ]
+    },
+    {
+      "otel_name": "messaging.read.body.size",
+      "name": "messaging_read_body_size_bytes",
+      "type": "histogram",
+      "unit": "bytes",
+      "group": "messaging",
+      "labels": [
+        "messaging_kind",
+        "messaging_origin",
+        "messaging_topic"
+      ],
+      "meaning": "Size of messages consumed (Kafka).",
+      "enabled_by": "backend/pubsub/publisher/kafka and backend/pubsub/subscriber/kafka. Generic backend/pubsub/* (NATS, SQS, ...) and backend/amqp/* emit no messaging metrics (KrakenD EE 3.0).",
+      "edition": "ee",
+      "observed": true,
+      "help": "Size of message body",
+      "series": [
+        "messaging_read_body_size_bytes_bucket",
+        "messaging_read_body_size_bytes_count",
+        "messaging_read_body_size_bytes_sum"
+      ]
+    },
+    {
+      "otel_name": "messaging.read.failure.count",
+      "name": "messaging_read_failure_count_seconds",
+      "type": "histogram",
+      "unit": "seconds",
+      "group": "messaging",
+      "labels": [
+        "messaging_kind",
+        "messaging_origin",
+        "messaging_topic"
+      ],
+      "meaning": "Failed consumes, as a histogram of how long the failing operation took (seconds). Count failures with _count.",
+      "enabled_by": "backend/pubsub/publisher/kafka and backend/pubsub/subscriber/kafka. Generic backend/pubsub/* (NATS, SQS, ...) and backend/amqp/* emit no messaging metrics (KrakenD EE 3.0).",
+      "edition": "ee",
+      "observed": false,
+      "notes": "Only exported after the first occurrence of the event.",
+      "verified_name": "KrakenD EE 3.0, observed with the Kafka broker stopped under traffic",
+      "series": [
+        "messaging_read_failure_count_seconds_bucket",
+        "messaging_read_failure_count_seconds_count",
+        "messaging_read_failure_count_seconds_sum"
+      ]
+    },
+    {
+      "otel_name": "messaging.write.body.duration",
+      "name": "messaging_write_body_duration_seconds",
+      "type": "histogram",
+      "unit": "seconds",
+      "group": "messaging",
+      "labels": [
+        "messaging_kind",
+        "messaging_topic"
+      ],
+      "meaning": "Time to publish a message (Kafka). _count = messages published.",
+      "enabled_by": "backend/pubsub/publisher/kafka and backend/pubsub/subscriber/kafka. Generic backend/pubsub/* (NATS, SQS, ...) and backend/amqp/* emit no messaging metrics (KrakenD EE 3.0).",
+      "edition": "ee",
+      "observed": true,
+      "help": "Time spent writing message",
+      "series": [
+        "messaging_write_body_duration_seconds_bucket",
+        "messaging_write_body_duration_seconds_count",
+        "messaging_write_body_duration_seconds_sum"
+      ]
+    },
+    {
+      "otel_name": "messaging.write.body.size",
+      "name": "messaging_write_body_size_bytes",
+      "type": "histogram",
+      "unit": "bytes",
+      "group": "messaging",
+      "labels": [
+        "messaging_kind",
+        "messaging_topic"
+      ],
+      "meaning": "Size of messages published (Kafka).",
+      "enabled_by": "backend/pubsub/publisher/kafka and backend/pubsub/subscriber/kafka. Generic backend/pubsub/* (NATS, SQS, ...) and backend/amqp/* emit no messaging metrics (KrakenD EE 3.0).",
+      "edition": "ee",
+      "observed": true,
+      "help": "Size of message body",
+      "series": [
+        "messaging_write_body_size_bytes_bucket",
+        "messaging_write_body_size_bytes_count",
+        "messaging_write_body_size_bytes_sum"
+      ]
+    },
+    {
+      "otel_name": "messaging.write.failure.count",
+      "name": "messaging_write_failure_count_seconds",
+      "type": "histogram",
+      "unit": "seconds",
+      "group": "messaging",
+      "labels": [
+        "messaging_kind",
+        "messaging_origin",
+        "messaging_topic"
+      ],
+      "meaning": "Failed publishes, as a histogram of how long the failing operation took (seconds). Count failures with _count.",
+      "enabled_by": "backend/pubsub/publisher/kafka and backend/pubsub/subscriber/kafka. Generic backend/pubsub/* (NATS, SQS, ...) and backend/amqp/* emit no messaging metrics (KrakenD EE 3.0).",
+      "edition": "ee",
+      "observed": false,
+      "notes": "Only exported after the first occurrence of the event.",
+      "verified_name": "KrakenD EE 3.0, observed with the Kafka broker stopped under traffic",
+      "series": [
+        "messaging_write_failure_count_seconds_bucket",
+        "messaging_write_failure_count_seconds_count",
+        "messaging_write_failure_count_seconds_sum"
+      ]
+    },
+    {
+      "otel_name": "websocket.client.connections.count",
+      "name": "websocket_client_connections_count_total",
+      "type": "counter",
+      "unit": null,
+      "group": "websocket",
+      "labels": [
+        "url_path"
+      ],
+      "meaning": "Connections KrakenD opened to WebSocket backends (label url_path = backend ws URL).",
+      "enabled_by": "websocket on an endpoint (websocket.disable_otel_metrics=false, default)",
+      "edition": "ee",
+      "observed": true
+    },
+    {
+      "otel_name": "websocket.client.disconnections.count",
+      "name": "websocket_client_disconnections_count_b_total",
+      "type": "counter",
+      "unit": "bytes",
+      "group": "websocket",
+      "labels": [
+        "url_path"
+      ],
+      "meaning": "Disconnections from WebSocket backends.",
+      "enabled_by": "websocket on an endpoint (websocket.disable_otel_metrics=false, default)",
+      "edition": "ee",
+      "observed": true
+    },
+    {
+      "otel_name": "websocket.client.request.size-hist",
+      "name": "websocket_client_request_size_hist_b",
+      "type": "histogram",
+      "unit": "bytes",
+      "group": "websocket",
+      "labels": [],
+      "meaning": "Size of messages sent to WebSocket backends.",
+      "enabled_by": "websocket on an endpoint (websocket.disable_otel_metrics=false, default)",
+      "edition": "ee",
+      "observed": true,
+      "series": [
+        "websocket_client_request_size_hist_b_bucket",
+        "websocket_client_request_size_hist_b_count",
+        "websocket_client_request_size_hist_b_sum"
+      ]
+    },
+    {
+      "otel_name": "websocket.client.response.size-hist",
+      "name": "websocket_client_response_size_hist_b",
+      "type": "histogram",
+      "unit": "bytes",
+      "group": "websocket",
+      "labels": [],
+      "meaning": "Size of messages received from WebSocket backends.",
+      "enabled_by": "websocket on an endpoint (websocket.disable_otel_metrics=false, default)",
+      "edition": "ee",
+      "observed": true,
+      "series": [
+        "websocket_client_response_size_hist_b_bucket",
+        "websocket_client_response_size_hist_b_count",
+        "websocket_client_response_size_hist_b_sum"
+      ]
+    },
+    {
+      "otel_name": "websocket.server.connections.count",
+      "name": "websocket_server_connections_count_b_total",
+      "type": "counter",
+      "unit": "bytes",
+      "group": "websocket",
+      "labels": [],
+      "meaning": "Client WebSocket connections accepted by KrakenD. No labels: cannot be split per endpoint.",
+      "enabled_by": "websocket on an endpoint (websocket.disable_otel_metrics=false, default)",
+      "edition": "ee",
+      "observed": true
+    },
+    {
+      "otel_name": "websocket.server.disconnections.count",
+      "name": "websocket_server_disconnections_count_b_total",
+      "type": "counter",
+      "unit": "bytes",
+      "group": "websocket",
+      "labels": [],
+      "meaning": "Client WebSocket disconnections. connections - disconnections = currently open client sessions.",
+      "enabled_by": "websocket on an endpoint (websocket.disable_otel_metrics=false, default)",
+      "edition": "ee",
+      "observed": true
+    },
+    {
+      "otel_name": "websocket.server.request.size-hist",
+      "name": "websocket_server_request_size_hist_b",
+      "type": "histogram",
+      "unit": "bytes",
+      "group": "websocket",
+      "labels": [],
+      "meaning": "Size of messages received from clients.",
+      "enabled_by": "websocket on an endpoint (websocket.disable_otel_metrics=false, default)",
+      "edition": "ee",
+      "observed": true,
+      "series": [
+        "websocket_server_request_size_hist_b_bucket",
+        "websocket_server_request_size_hist_b_count",
+        "websocket_server_request_size_hist_b_sum"
+      ]
+    },
+    {
+      "otel_name": "websocket.server.response.size-hist",
+      "name": "websocket_server_response_size_hist_b",
+      "type": "histogram",
+      "unit": "bytes",
+      "group": "websocket",
+      "labels": [],
+      "meaning": "Size of messages sent to clients.",
+      "enabled_by": "websocket on an endpoint (websocket.disable_otel_metrics=false, default)",
+      "edition": "ee",
+      "observed": true,
+      "series": [
+        "websocket_server_response_size_hist_b_bucket",
+        "websocket_server_response_size_hist_b_count",
+        "websocket_server_response_size_hist_b_sum"
+      ]
+    }
+  ],
+  "runtime": {
+    "meaning": "Go runtime and process metrics of each KrakenD node. go_* need go_metrics, process_* need process_metrics. Check each family's type: most go_memstats_* and process_* values are GAUGES (use them as-is, avg_over_time/max_over_time; never rate()); only *_total are counters (rate()); go_gc_duration_seconds is a SUMMARY (quantile label 0..1 = pause quantiles of recent cycles; rate(_count) = GCs/s, rate(_sum) = seconds paused per second).",
+    "enabled_by": "exporters.prometheus[].go_metrics=true / process_metrics=true",
+    "families": [
+      "go_gc_duration_seconds",
+      "go_gc_gogc_percent",
+      "go_gc_gomemlimit_bytes",
+      "go_goroutines",
+      "go_info",
+      "go_memstats_alloc_bytes",
+      "go_memstats_alloc_bytes_total",
+      "go_memstats_buck_hash_sys_bytes",
+      "go_memstats_frees_total",
+      "go_memstats_gc_sys_bytes",
+      "go_memstats_heap_alloc_bytes",
+      "go_memstats_heap_idle_bytes",
+      "go_memstats_heap_inuse_bytes",
+      "go_memstats_heap_objects",
+      "go_memstats_heap_released_bytes",
+      "go_memstats_heap_sys_bytes",
+      "go_memstats_last_gc_time_seconds",
+      "go_memstats_mallocs_total",
+      "go_memstats_mcache_inuse_bytes",
+      "go_memstats_mcache_sys_bytes",
+      "go_memstats_mspan_inuse_bytes",
+      "go_memstats_mspan_sys_bytes",
+      "go_memstats_next_gc_bytes",
+      "go_memstats_other_sys_bytes",
+      "go_memstats_stack_inuse_bytes",
+      "go_memstats_stack_sys_bytes",
+      "go_memstats_sys_bytes",
+      "go_sched_gomaxprocs_threads",
+      "go_threads",
+      "process_cpu_seconds_total",
+      "process_max_fds",
+      "process_network_receive_bytes_total",
+      "process_network_transmit_bytes_total",
+      "process_open_fds",
+      "process_resident_memory_bytes",
+      "process_start_time_seconds",
+      "process_virtual_memory_bytes",
+      "process_virtual_memory_max_bytes"
+    ],
+    "details": {
+      "go_gc_duration_seconds": {
+        "type": "summary",
+        "help": "A summary of the wall-time pause (stop-the-world) duration in garbage collection cycles."
+      },
+      "go_gc_gogc_percent": {
+        "type": "gauge",
+        "help": "Heap size target percentage configured by the user, otherwise 100. This value is set by the GOGC environment variable, and the runtime/debug.SetGCPercent function. Sourced from /gc/gogc:percent."
+      },
+      "go_gc_gomemlimit_bytes": {
+        "type": "gauge",
+        "help": "Go runtime memory limit configured by the user, otherwise math.MaxInt64. This value is set by the GOMEMLIMIT environment variable, and the runtime/debug.SetMemoryLimit function. Sourced from /gc/gomemlimit:bytes."
+      },
+      "go_goroutines": {
+        "type": "gauge",
+        "help": "Number of goroutines that currently exist."
+      },
+      "go_info": {
+        "type": "gauge",
+        "help": "Information about the Go environment."
+      },
+      "go_memstats_alloc_bytes": {
+        "type": "gauge",
+        "help": "Number of bytes allocated in heap and currently in use. Equals to /memory/classes/heap/objects:bytes."
+      },
+      "go_memstats_alloc_bytes_total": {
+        "type": "counter",
+        "help": "Total number of bytes allocated in heap until now, even if released already. Equals to /gc/heap/allocs:bytes."
+      },
+      "go_memstats_buck_hash_sys_bytes": {
+        "type": "gauge",
+        "help": "Number of bytes used by the profiling bucket hash table. Equals to /memory/classes/profiling/buckets:bytes."
+      },
+      "go_memstats_frees_total": {
+        "type": "counter",
+        "help": "Total number of heap objects frees. Equals to /gc/heap/frees:objects + /gc/heap/tiny/allocs:objects."
+      },
+      "go_memstats_gc_sys_bytes": {
+        "type": "gauge",
+        "help": "Number of bytes used for garbage collection system metadata. Equals to /memory/classes/metadata/other:bytes."
+      },
+      "go_memstats_heap_alloc_bytes": {
+        "type": "gauge",
+        "help": "Number of heap bytes allocated and currently in use, same as go_memstats_alloc_bytes. Equals to /memory/classes/heap/objects:bytes."
+      },
+      "go_memstats_heap_idle_bytes": {
+        "type": "gauge",
+        "help": "Number of heap bytes waiting to be used. Equals to /memory/classes/heap/released:bytes + /memory/classes/heap/free:bytes."
+      },
+      "go_memstats_heap_inuse_bytes": {
+        "type": "gauge",
+        "help": "Number of heap bytes that are in use. Equals to /memory/classes/heap/objects:bytes + /memory/classes/heap/unused:bytes"
+      },
+      "go_memstats_heap_objects": {
+        "type": "gauge",
+        "help": "Number of currently allocated objects. Equals to /gc/heap/objects:objects."
+      },
+      "go_memstats_heap_released_bytes": {
+        "type": "gauge",
+        "help": "Number of heap bytes released to OS. Equals to /memory/classes/heap/released:bytes."
+      },
+      "go_memstats_heap_sys_bytes": {
+        "type": "gauge",
+        "help": "Number of heap bytes obtained from system. Equals to /memory/classes/heap/objects:bytes + /memory/classes/heap/unused:bytes + /memory/classes/heap/released:bytes + /memory/classes/heap/free:bytes."
+      },
+      "go_memstats_last_gc_time_seconds": {
+        "type": "gauge",
+        "help": "Number of seconds since 1970 of last garbage collection."
+      },
+      "go_memstats_mallocs_total": {
+        "type": "counter",
+        "help": "Total number of heap objects allocated, both live and gc-ed. Semantically a counter version for go_memstats_heap_objects gauge. Equals to /gc/heap/allocs:objects + /gc/heap/tiny/allocs:objects."
+      },
+      "go_memstats_mcache_inuse_bytes": {
+        "type": "gauge",
+        "help": "Number of bytes in use by mcache structures. Equals to /memory/classes/metadata/mcache/inuse:bytes."
+      },
+      "go_memstats_mcache_sys_bytes": {
+        "type": "gauge",
+        "help": "Number of bytes used for mcache structures obtained from system. Equals to /memory/classes/metadata/mcache/inuse:bytes + /memory/classes/metadata/mcache/free:bytes."
+      },
+      "go_memstats_mspan_inuse_bytes": {
+        "type": "gauge",
+        "help": "Number of bytes in use by mspan structures. Equals to /memory/classes/metadata/mspan/inuse:bytes."
+      },
+      "go_memstats_mspan_sys_bytes": {
+        "type": "gauge",
+        "help": "Number of bytes used for mspan structures obtained from system. Equals to /memory/classes/metadata/mspan/inuse:bytes + /memory/classes/metadata/mspan/free:bytes."
+      },
+      "go_memstats_next_gc_bytes": {
+        "type": "gauge",
+        "help": "Number of heap bytes when next garbage collection will take place. Equals to /gc/heap/goal:bytes."
+      },
+      "go_memstats_other_sys_bytes": {
+        "type": "gauge",
+        "help": "Number of bytes used for other system allocations. Equals to /memory/classes/other:bytes."
+      },
+      "go_memstats_stack_inuse_bytes": {
+        "type": "gauge",
+        "help": "Number of bytes obtained from system for stack allocator in non-CGO environments. Equals to /memory/classes/heap/stacks:bytes."
+      },
+      "go_memstats_stack_sys_bytes": {
+        "type": "gauge",
+        "help": "Number of bytes obtained from system for stack allocator. Equals to /memory/classes/heap/stacks:bytes + /memory/classes/os-stacks:bytes."
+      },
+      "go_memstats_sys_bytes": {
+        "type": "gauge",
+        "help": "Number of bytes obtained from system. Equals to /memory/classes/total:byte."
+      },
+      "go_sched_gomaxprocs_threads": {
+        "type": "gauge",
+        "help": "The current runtime.GOMAXPROCS setting, or the number of operating system threads that can execute user-level Go code simultaneously. Sourced from /sched/gomaxprocs:threads."
+      },
+      "go_threads": {
+        "type": "gauge",
+        "help": "Number of OS threads created."
+      },
+      "process_cpu_seconds_total": {
+        "type": "counter",
+        "help": "Total user and system CPU time spent in seconds."
+      },
+      "process_max_fds": {
+        "type": "gauge",
+        "help": "Maximum number of open file descriptors."
+      },
+      "process_open_fds": {
+        "type": "gauge",
+        "help": "Number of open file descriptors."
+      },
+      "process_resident_memory_bytes": {
+        "type": "gauge",
+        "help": "Resident memory size in bytes."
+      },
+      "process_start_time_seconds": {
+        "type": "gauge",
+        "help": "Start time of the process since unix epoch in seconds."
+      },
+      "process_virtual_memory_bytes": {
+        "type": "gauge",
+        "help": "Virtual memory size in bytes."
+      },
+      "process_virtual_memory_max_bytes": {
+        "type": "gauge",
+        "help": "Maximum amount of virtual memory available in bytes."
+      },
+      "process_network_receive_bytes_total": {
+        "type": "counter",
+        "help": "Number of bytes received by the process over the network.",
+        "linux_only": true
+      },
+      "process_network_transmit_bytes_total": {
+        "type": "counter",
+        "help": "Number of bytes sent by the process over the network.",
+        "linux_only": true
+      }
+    }
+  },
+  "gotchas": [
+    "Two naming conventions exist (layers.global.semantic_convention). Default (\"\") -> http_server_duration, http_client_duration...; \"1.27\" -> http_server_request_duration_seconds, http_client_request_duration_seconds, *_body_size_bytes, and connection timings get a _seconds suffix. Labels and buckets are identical. Detect which one the user has before writing queries: see each metric's semconv_1_27 field.",
+    "Under semconv 1.27, http_client_request_size_total (counter) becomes http_client_request_body_size_bytes (histogram): rate(X_total) -> rate(X_sum).",
+    "Under semconv 1.27, http_client_response_no_content_length gets a bytes unit (\u2026_no_content_length_bytes_total) although it counts responses.",
+    "Lazy instruments: http_client_* only exist after the first backend call; event-only counters (timeouts, canceled, read errors, failures, cb half-to-close) only appear after the first event. Use `or vector(0)` in stats so panels show 0 instead of 'No data'.",
+    "Histogram percentiles are interpolated inside buckets (0.01, 0.02, 0.05, 0.075, 0.1, 0.125, ... s). Layers whose real latencies differ by less than a bucket width get the same p95: compare layers with averages (_sum/_count).",
+    "Router rate limit rejections surface as http_server_duration status 503 by default; there is no dedicated rate-limit metric.",
+    "Prompt guard blocks return HTTP 500 to the client (KrakenD EE 3.0), so they inflate 5xx error rates. Subtract krakend_promptguard_check_requests_total{krakend_promptguard_blocked=\"true\"} when computing gateway errors for AI endpoints.",
+    "Prompt guard only inspected the Responses-API 'input' field against an ai/llm openai v1 backend; a chat-completions 'messages' body passed unchecked.",
+    "WebSocket server metrics have no labels (no endpoint, no instance-level split besides scrape labels).",
+    "WebSocket connection counters carry a bytes unit by mistake: websocket_server_connections_count_b_total, websocket_*_disconnections_count_b_total (but websocket_client_connections_count_total without _b). Use the names as exposed.",
+    "Redis pool hits/misses/waits/timeouts are cumulative values exported as GAUGES: use delta()/deriv() or idelta, not rate().",
+    "Redis pool_name is the address (localhost:6379), not the configured connection pool name.",
+    "Only Kafka backends emit messaging_* metrics; NATS/SQS/etc. pubsub and AMQP backends only show up in http_server/krakend_* layer metrics.",
+    "Requests to KrakenD's own /__debug/ and /__echo/ endpoints are counted with http_route=\"200 OK\" even though they're in the default skip_paths. Exclude http_route=~\"[0-9]{3} .*\" from per-endpoint views."
+  ]
+}

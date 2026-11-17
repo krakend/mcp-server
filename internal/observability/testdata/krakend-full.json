@@ -1,0 +1,1088 @@
+{
+  "$schema": "https://www.krakend.io/schema/v3.0/krakend.json",
+  "version": 4,
+  "name": "KrakenD with every component enabled",
+  "port": 8280,
+  "timeout": "3s",
+  "host": [
+    "http://localhost:8280"
+  ],
+  "debug_endpoint": true,
+  "echo_endpoint": true,
+  "extra_config": {
+    "telemetry/opentelemetry": {
+      "service_name": "krakend_full",
+      "service_version": "local",
+      "deploy_env": "local",
+      "metric_reporting_period": 1,
+      "trace_sample_rate": 1,
+      "exporters": {
+        "prometheus": [
+          {
+            "name": "local_prometheus",
+            "port": 9095,
+            "process_metrics": true,
+            "go_metrics": true
+          }
+        ],
+        "otlp": [
+          {
+            "name": "local_otlp",
+            "host": "localhost",
+            "port": 4317,
+            "use_http": false
+          }
+        ]
+      },
+      "layers": {
+        "global": {
+          "disable_metrics": false,
+          "disable_traces": false,
+          "report_headers": true
+        },
+        "proxy": {
+          "disable_metrics": false,
+          "disable_traces": false,
+          "report_headers": true
+        },
+        "backend": {
+          "metrics": {
+            "disable_stage": false,
+            "round_trip": true,
+            "read_payload": true,
+            "detailed_connection": true
+          },
+          "traces": {
+            "disable_stage": false,
+            "round_trip": true,
+            "read_payload": true,
+            "detailed_connection": true,
+            "report_headers": true
+          }
+        }
+      }
+    },
+    "telemetry/opentelemetry-security": {
+      "otlp": [
+        {
+          "name": "local_otlp",
+          "headers": {
+            "X-Source": "krakend"
+          }
+        }
+      ]
+    },
+    "telemetry/logging": {
+      "level": "DEBUG",
+      "prefix": "[KRAKEND]",
+      "stdout": true,
+      "format": "default"
+    },
+    "telemetry/gelf": {
+      "address": "localhost:12201",
+      "enable_tcp": false
+    },
+    "telemetry/logstash": {
+      "enabled": false
+    },
+    "router": {
+      "health_path": "/__health",
+      "return_error_msg": true,
+      "logger_skip_paths": [
+        "/__health"
+      ],
+      "hide_version_header": true
+    },
+    "security/cors": {
+      "allow_origins": [
+        "*"
+      ],
+      "allow_methods": [
+        "GET",
+        "POST",
+        "PUT",
+        "DELETE"
+      ],
+      "allow_headers": [
+        "Authorization",
+        "Content-Type",
+        "X-Tier"
+      ],
+      "max_age": "12h"
+    },
+    "security/http": {
+      "frame_deny": true,
+      "content_type_nosniff": true,
+      "browser_xss_filter": true,
+      "referrer_policy": "same-origin"
+    },
+    "security/bot-detector": {
+      "deny": [
+        "a-bad-bot"
+      ],
+      "patterns": [
+        "(Pingdom.com_bot_version_).*"
+      ],
+      "cache_size": 1000
+    },
+    "modifier/response-headers": {
+      "add": {
+        "X-Gateway": [
+          "krakend-full"
+        ]
+      },
+      "delete": [
+        "X-Powered-By"
+      ]
+    },
+    "auth/api-keys": {
+      "strategy": "header",
+      "identifier": "X-Api-Key",
+      "hash": "plain",
+      "keys": [
+        {
+          "key": "admin-key",
+          "roles": [
+            "admin",
+            "user"
+          ]
+        },
+        {
+          "key": "user-key",
+          "roles": [
+            "user"
+          ]
+        }
+      ]
+    },
+    "auth/basic": {
+      "users": {
+        "admin": "$2y$05$kkTx0IH7TP.GaoTeAmkm..NpfR3H/oUGwiE2PALywa0A7kpNXJN8m"
+      }
+    },
+    "auth/validator": {
+      "shared_cache_duration": 900
+    },
+    "auth/revoker": {
+      "N": 1000000,
+      "P": 1e-07,
+      "hash_name": "optimal",
+      "TTL": 1500,
+      "port": 1234,
+      "token_keys": [
+        "jti"
+      ],
+      "revoke_server_ping_url": "http://localhost:8280/__health",
+      "revoke_server_ping_interval": "30s",
+      "revoke_server_api_key": "demo-key"
+    },
+    "qos/ratelimit/service": {
+      "max_rate": 1000,
+      "capacity": 1000,
+      "client_max_rate": 100,
+      "client_capacity": 100,
+      "strategy": "ip"
+    },
+    "redis": {
+      "connection_pools": [
+        {
+          "name": "local_redis",
+          "address": "localhost:6379",
+          "pool_size": 10
+        }
+      ]
+    },
+    "qos/ratelimit/service/redis": {
+      "connection_pool": "local_redis",
+      "max_rate": 1000,
+      "capacity": 1000,
+      "on_failure_allow": true
+    },
+    "governance/processors": {
+      "quotas": [
+        {
+          "name": "public_api",
+          "connection_name": "local_redis",
+          "hash_keys": true,
+          "on_failure_allow": true,
+          "rules": [
+            {
+              "name": "gold",
+              "limits": [
+                {
+                  "amount": 1000,
+                  "unit": "hour"
+                },
+                {
+                  "amount": 10000,
+                  "unit": "day"
+                }
+              ]
+            },
+            {
+              "name": "silver",
+              "limits": [
+                {
+                  "amount": 100,
+                  "unit": "hour"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "server/static-filesystem": {
+      "prefix": "/static/",
+      "path": "./static/",
+      "directory_listing": false
+    },
+    "documentation/openapi": {
+      "description": "Everything-enabled demo",
+      "version": "1.0",
+      "base_path": "/",
+      "contact_name": "KrakenD"
+    },
+    "documentation/postman": {
+      "name": "krakend-full",
+      "description": "Everything-enabled demo",
+      "version": "1.0.0"
+    },
+    "ai/providers": {
+      "providers": [
+        {
+          "name": "fast-chat",
+          "provider": "openai",
+          "credentials": "sk-not-a-real-key",
+          "model": "gpt-5-nano",
+          "endpoint": "http://localhost:8096"
+        },
+        {
+          "name": "smart-chat",
+          "provider": "anthropic",
+          "credentials": "not-a-real-key",
+          "model": "claude-opus-4-1-20250805",
+          "endpoint": "http://localhost:8096"
+        }
+      ]
+    },
+    "ai/prompt-guard": {
+      "guards": [
+        {
+          "name": "block_jailbreak_terms",
+          "kind": "regex",
+          "severity": "high",
+          "config": {
+            "patterns": [
+              "(?i)ignore previous instructions"
+            ]
+          }
+        }
+      ]
+    },
+    "ai/classifiers": {
+      "gates": [
+        {
+          "name": "plan_enterprise",
+          "rule": "header",
+          "header": {
+            "name": "X-Plan",
+            "value": "enterprise"
+          }
+        }
+      ]
+    },
+    "ai/mcp": {
+      "servers": [
+        {
+          "name": "gateway-tools",
+          "title": "Gateway tools",
+          "version": "0.1.0",
+          "stateless": true,
+          "tools": [
+            {
+              "name": "echo",
+              "title": "Echo",
+              "description": "Echoes the request through KrakenD",
+              "input_schema": {
+                "type": "object",
+                "properties": {
+                  "message": {
+                    "type": "string"
+                  }
+                }
+              },
+              "workflow": {
+                "endpoint": "/__mcp-echo",
+                "backend": [
+                  {
+                    "host": [
+                      "http://localhost:8280"
+                    ],
+                    "url_pattern": "/__debug/mcp-echo"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "endpoints": [
+    {
+      "@comment": "MCP server endpoint",
+      "endpoint": "/mcp",
+      "method": "POST",
+      "extra_config": {
+        "ai/mcp": {
+          "server_name": "gateway-tools"
+        }
+      },
+      "backend": [
+        {
+          "url_pattern": "/__mcp/gateway-tools"
+        }
+      ]
+    },
+    {
+      "@comment": "JWT validation + JWT security policies + CEL + router rate limit + redis router rate limit + quota",
+      "endpoint": "/secure/{id}",
+      "method": "GET",
+      "input_headers": [
+        "Authorization",
+        "X-Tier"
+      ],
+      "extra_config": {
+        "auth/validator": {
+          "alg": "HS256",
+          "jwk_local_path": "./files/jwk-symmetric.json",
+          "disable_jwk_security": true
+        },
+        "security/policies": {
+          "req": {
+            "policies": [
+              "hasHeader('Authorization')"
+            ]
+          },
+          "jwt": {
+            "policies": [
+              "has(JWT.sub)"
+            ]
+          }
+        },
+        "validation/cel": [
+          {
+            "check_expr": "size(req_params.Id) > 0"
+          }
+        ],
+        "qos/ratelimit/router": {
+          "max_rate": 50,
+          "capacity": 50,
+          "client_max_rate": 5,
+          "client_capacity": 5,
+          "strategy": "ip"
+        },
+        "qos/ratelimit/router/redis": {
+          "connection_pool": "local_redis",
+          "max_rate": 50,
+          "capacity": 50
+        },
+        "governance/quota": {
+          "quota_name": "public_api",
+          "tier_key": "X-Tier",
+          "on_unmatched_tier_allow": true,
+          "tiers": [
+            {
+              "rule_name": "gold",
+              "tier_value": "gold",
+              "tier_value_as": "literal",
+              "strategy": "header",
+              "key": "X-Tier"
+            },
+            {
+              "rule_name": "silver",
+              "tier_value": "*",
+              "tier_value_as": "*",
+              "strategy": "ip"
+            }
+          ]
+        }
+      },
+      "backend": [
+        {
+          "url_pattern": "/__debug/secure/{id}"
+        }
+      ]
+    },
+    {
+      "@comment": "JWT signer",
+      "endpoint": "/token",
+      "method": "POST",
+      "extra_config": {
+        "auth/signer": {
+          "alg": "HS256",
+          "kid": "sim1",
+          "keys_to_sign": [
+            "access_token"
+          ],
+          "jwk_local_path": "./files/jwk-symmetric.json",
+          "disable_jwk_security": true
+        },
+        "modifier/response-body-generator": {
+          "template": "eyJhY2Nlc3NfdG9rZW4iOiB7InN1YiI6ICJkZW1vIiwgImV4cCI6IDE5OTk5OTk5OTksICJqdGkiOiAiYWJjIn19",
+          "debug": true,
+          "content_type": "application/json"
+        }
+      },
+      "backend": [
+        {
+          "url_pattern": "/__debug/token"
+        }
+      ]
+    },
+    {
+      "@comment": "API keys + basic auth + tiered rate limit",
+      "endpoint": "/admin",
+      "method": "GET",
+      "input_headers": [
+        "X-Api-Key",
+        "Authorization",
+        "X-Tier"
+      ],
+      "extra_config": {
+        "auth/api-keys": {
+          "roles": [
+            "admin"
+          ],
+          "client_max_rate": 10
+        },
+        "qos/ratelimit/tiered": {
+          "tier_key": "X-Tier",
+          "tiers": [
+            {
+              "tier_value": "gold",
+              "tier_value_as": "literal",
+              "ratelimit": {
+                "client_max_rate": 100,
+                "client_capacity": 100,
+                "strategy": "header",
+                "key": "X-Api-Key"
+              }
+            },
+            {
+              "tier_value": "*",
+              "tier_value_as": "*",
+              "ratelimit_redis": {
+                "connection_pool": "local_redis",
+                "client_max_rate": 10,
+                "client_capacity": 10,
+                "strategy": "ip"
+              }
+            }
+          ]
+        }
+      },
+      "backend": [
+        {
+          "url_pattern": "/__debug/admin"
+        }
+      ]
+    },
+    {
+      "@comment": "Basic auth",
+      "endpoint": "/basic",
+      "method": "GET",
+      "input_headers": [
+        "Authorization"
+      ],
+      "extra_config": {
+        "auth/basic": {
+          "users": {}
+        }
+      },
+      "backend": [
+        {
+          "url_pattern": "/__debug/basic"
+        }
+      ]
+    },
+    {
+      "@comment": "Aggregation, jmespath, response-body modifiers, lua, json-schema, response-json-schema, body extractor, CORS & bot detector override",
+      "endpoint": "/aggregate",
+      "method": "POST",
+      "extra_config": {
+        "validation/json-schema": {
+          "type": "object",
+          "properties": {
+            "user": {
+              "type": "object"
+            }
+          }
+        },
+        "modifier/request-body-extractor/early": {
+          "operations": [
+            {
+              "type": "header",
+              "strategy": "dotnotation",
+              "expression": "user.id",
+              "target": "X-User-Id",
+              "on_conflict": "replace"
+            }
+          ]
+        },
+        "modifier/lua-endpoint": {
+          "pre": "local r = ctx.load(); r:headers('X-Lua', 'endpoint')"
+        },
+        "modifier/lua-proxy": {
+          "post": "local r = response.load(); r:data():set('lua', true)"
+        },
+        "modifier/jmespath": {
+          "expr": "{a: a, b: b, lua: lua}"
+        },
+        "modifier/response-body": {
+          "modifiers": [
+            {
+              "upper": {
+                "field": "a.message"
+              }
+            }
+          ]
+        },
+        "validation/response-json-schema": {
+          "schema": {
+            "type": "object"
+          }
+        },
+        "proxy": {
+          "sequential": false,
+          "max_payload": 1048576
+        },
+        "security/bot-detector": {
+          "empty_user_agent_is_bot": true
+        },
+        "security/cors": {
+          "allow_origins": [
+            "https://example.com"
+          ]
+        }
+      },
+      "backend": [
+        {
+          "url_pattern": "/__echo/a",
+          "group": "a",
+          "extra_config": {
+            "qos/circuit-breaker": {
+              "interval": 60,
+              "timeout": 10,
+              "max_errors": 5,
+              "name": "cb-a",
+              "log_status_change": true
+            },
+            "qos/http-cache": {
+              "max_items": 1000,
+              "max_size": 10485760
+            },
+            "qos/ratelimit/proxy": {
+              "max_rate": 100,
+              "capacity": 100
+            },
+            "modifier/lua-backend": {
+              "pre": "local r = request.load(); r:headers('X-Lua', 'backend')"
+            },
+            "modifier/martian": {
+              "header.Modifier": {
+                "scope": [
+                  "request"
+                ],
+                "name": "X-Martian",
+                "value": "yes"
+              }
+            },
+            "telemetry/logging": {
+              "log_with_level": "INFO",
+              "prefix": "[BACKEND-A]"
+            }
+          }
+        },
+        {
+          "url_pattern": "/__echo/b",
+          "group": "b",
+          "extra_config": {
+            "qos/circuit-breaker/http": {
+              "interval": 60,
+              "timeout": 10,
+              "max_errors": 5,
+              "name": "cb-b-http",
+              "valid_status_codes": [
+                200,
+                201
+              ]
+            },
+            "backend/http": {
+              "return_error_code": true
+            },
+            "backend/http/client": {
+              "no_redirect": true
+            },
+            "security/policies": {
+              "resp": {
+                "policies": [
+                  "true"
+                ]
+              }
+            },
+            "validation/cel": [
+              {
+                "check_expr": "true"
+              }
+            ],
+            "modifier/request-body-generator": {
+              "path": "./files/body.tmpl"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@comment": "Sequential proxy + static + workflow",
+      "endpoint": "/workflow/{id}",
+      "method": "GET",
+      "extra_config": {
+        "proxy": {
+          "sequential": true,
+          "static": {
+            "strategy": "errored",
+            "data": {
+              "fallback": true
+            }
+          }
+        }
+      },
+      "backend": [
+        {
+          "url_pattern": "/__debug/step1/{id}",
+          "group": "step1"
+        },
+        {
+          "url_pattern": "/__debug/step2",
+          "extra_config": {
+            "workflow": {
+              "endpoint": "/wf/{id}",
+              "concurrent_calls": 1,
+              "backend": [
+                {
+                  "host": [
+                    "http://localhost:8280"
+                  ],
+                  "url_pattern": "/__debug/wf-inner/{id}"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@comment": "Conditional backends",
+      "endpoint": "/conditional",
+      "method": "GET",
+      "input_headers": [
+        "X-Variant"
+      ],
+      "backend": [
+        {
+          "url_pattern": "/__debug/variant-a",
+          "extra_config": {
+            "backend/conditional": {
+              "strategy": "header",
+              "name": "X-Variant",
+              "value": "A"
+            }
+          }
+        },
+        {
+          "url_pattern": "/__debug/fallback",
+          "extra_config": {
+            "backend/conditional": {
+              "strategy": "fallback"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@comment": "Shadow backend",
+      "endpoint": "/shadow",
+      "method": "GET",
+      "backend": [
+        {
+          "url_pattern": "/__debug/primary"
+        },
+        {
+          "url_pattern": "/__debug/shadow",
+          "extra_config": {
+            "proxy": {
+              "shadow": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@comment": "Backend auth flavours (lazy: only used at request time)",
+      "endpoint": "/backend-auth",
+      "method": "GET",
+      "backend": [
+        {
+          "url_pattern": "/__debug/cc",
+          "group": "cc",
+          "extra_config": {
+            "auth/client-credentials": {
+              "client_id": "id",
+              "client_secret": "secret",
+              "token_url": "http://localhost:8280/__debug/token-endpoint"
+            }
+          }
+        },
+        {
+          "url_pattern": "/__debug/ntlm",
+          "group": "ntlm",
+          "extra_config": {
+            "auth/ntlm": {
+              "user": "u",
+              "password": "p"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@comment": "AWS SigV4 + Lambda (request time only)",
+      "endpoint": "/aws",
+      "method": "GET",
+      "backend": [
+        {
+          "url_pattern": "/__debug/sigv4",
+          "group": "sigv4",
+          "extra_config": {
+            "auth/aws-sigv4": {
+              "region": "us-east-1",
+              "service": "execute-api"
+            }
+          }
+        },
+        {
+          "url_pattern": "/lambda",
+          "group": "lambda",
+          "extra_config": {
+            "backend/lambda": {
+              "function_name": "demo",
+              "region": "us-east-1",
+              "max_retries": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@comment": "GraphQL + SOAP adapters",
+      "endpoint": "/adapters",
+      "method": "GET",
+      "backend": [
+        {
+          "url_pattern": "/__debug/graphql",
+          "group": "graphql",
+          "method": "POST",
+          "extra_config": {
+            "backend/graphql": {
+              "type": "query",
+              "query": "{ hello }"
+            }
+          }
+        },
+        {
+          "url_pattern": "/__debug/soap",
+          "group": "soap",
+          "method": "POST",
+          "encoding": "no-op",
+          "extra_config": {
+            "backend/soap": {
+              "template": "PEVudmVsb3BlPjxCb2R5PjxIZWxsby8+PC9Cb2R5PjwvRW52ZWxvcGU+"
+            }
+          }
+        }
+      ],
+      "output_encoding": "json"
+    },
+    {
+      "@comment": "Static filesystem backend",
+      "endpoint": "/files/{file}",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "backend": [
+        {
+          "url_pattern": "/{file}",
+          "encoding": "no-op",
+          "extra_config": {
+            "backend/static-filesystem": {
+              "path": "./static/"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@comment": "Generic pubsub (in-memory driver)",
+      "endpoint": "/pubsub/publish",
+      "method": "POST",
+      "backend": [
+        {
+          "host": [
+            "nats://"
+          ],
+          "disable_host_sanitize": true,
+          "url_pattern": "",
+          "extra_config": {
+            "backend/pubsub/publisher": {
+              "topic_url": "krakend-demo"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "endpoint": "/pubsub/consume",
+      "method": "GET",
+      "backend": [
+        {
+          "host": [
+            "nats://"
+          ],
+          "disable_host_sanitize": true,
+          "url_pattern": "",
+          "extra_config": {
+            "backend/pubsub/subscriber": {
+              "subscription_url": "krakend-demo"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@comment": "Kafka producer / consumer",
+      "endpoint": "/kafka/publish",
+      "method": "POST",
+      "backend": [
+        {
+          "host": [
+            "kafka://"
+          ],
+          "disable_host_sanitize": true,
+          "url_pattern": "",
+          "extra_config": {
+            "backend/pubsub/publisher/kafka": {
+              "writer": {
+                "cluster": {
+                  "brokers": [
+                    "localhost:9092"
+                  ]
+                },
+                "topic": "krakend-demo"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "endpoint": "/kafka/consume",
+      "method": "GET",
+      "backend": [
+        {
+          "host": [
+            "kafka://"
+          ],
+          "disable_host_sanitize": true,
+          "url_pattern": "",
+          "extra_config": {
+            "backend/pubsub/subscriber/kafka": {
+              "reader": {
+                "cluster": {
+                  "brokers": [
+                    "localhost:9092"
+                  ]
+                },
+                "group": {
+                  "id": "krakend"
+                },
+                "topics": [
+                  "krakend-demo"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@comment": "AMQP producer / consumer",
+      "endpoint": "/amqp/produce",
+      "method": "POST",
+      "backend": [
+        {
+          "host": [
+            "amqp://guest:guest@localhost:5672"
+          ],
+          "disable_host_sanitize": true,
+          "url_pattern": "",
+          "extra_config": {
+            "backend/amqp/producer": {
+              "name": "krakend-queue",
+              "exchange": "krakend-ex",
+              "routing_key": "demo",
+              "durable": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "endpoint": "/amqp/consume",
+      "method": "GET",
+      "backend": [
+        {
+          "host": [
+            "amqp://guest:guest@localhost:5672"
+          ],
+          "disable_host_sanitize": true,
+          "url_pattern": "",
+          "extra_config": {
+            "backend/amqp/consumer": {
+              "name": "krakend-queue",
+              "exchange": "krakend-ex",
+              "routing_key": [
+                "demo"
+              ],
+              "durable": true,
+              "auto_ack": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@comment": "WebSocket",
+      "endpoint": "/ws",
+      "method": "GET",
+      "input_headers": [
+        "*"
+      ],
+      "extra_config": {
+        "websocket": {
+          "connect_event": true,
+          "disconnect_event": true,
+          "enable_direct_communication": true
+        }
+      },
+      "backend": [
+        {
+          "host": [
+            "ws://localhost:8097"
+          ],
+          "url_pattern": "/",
+          "disable_host_sanitize": true
+        }
+      ]
+    },
+    {
+      "@comment": "AI gateway: unified LLM interface, prompt guard, classifier gates via ai/router",
+      "endpoint": "/ai/chat",
+      "method": "POST",
+      "extra_config": {
+        "ai/prompt-guard": {
+          "guards": [
+            "block_jailbreak_terms"
+          ]
+        }
+      },
+      "backend": [
+        {
+          "url_pattern": "/v1/responses",
+          "host": [
+            "http://localhost:8096"
+          ],
+          "extra_config": {
+            "ai/llm": {
+              "openai": {
+                "v1": {
+                  "credentials": "sk-not-a-real-key",
+                  "variables": {
+                    "model": "gpt-5-nano"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "input_headers": [
+        "*"
+      ]
+    },
+    {
+      "endpoint": "/ai/routed",
+      "method": "POST",
+      "backend": [
+        {
+          "url_pattern": "/",
+          "host": [
+            "http://localhost:8096"
+          ],
+          "extra_config": {
+            "ai/router": {
+              "failover": "fast-chat",
+              "routes": [
+                {
+                  "gates": [
+                    "plan_enterprise"
+                  ],
+                  "provider": "smart-chat"
+                },
+                {
+                  "provider": "fast-chat"
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "input_headers": [
+        "X-Plan",
+        "Content-Type"
+      ]
+    },
+    {
+      "@comment": "Always-failing backend to drive circuit breaker state transitions",
+      "endpoint": "/breaker",
+      "method": "GET",
+      "backend": [
+        {
+          "host": [
+            "http://localhost:8096"
+          ],
+          "url_pattern": "/fail",
+          "extra_config": {
+            "qos/circuit-breaker": {
+              "interval": 10,
+              "timeout": 2,
+              "max_errors": 2,
+              "name": "cb-breaker",
+              "log_status_change": true
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
