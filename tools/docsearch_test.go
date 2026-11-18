@@ -1,15 +1,20 @@
 package tools
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/blevesearch/bleve/v2"
+	"github.com/blevesearch/bleve/v2/search"
 	"github.com/krakend/mcp-server/internal/indexing"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func TestParseDocumentation_EmptyContent(t *testing.T) {
@@ -698,4 +703,41 @@ func TestLockMechanism(t *testing.T) {
 			t.Error("Non-existent process should not be detected as running")
 		}
 	})
+}
+
+// hitsIndex is a mock index that returns a fixed set of hits.
+type hitsIndex struct {
+	*mockIndex
+	hits search.DocumentMatchCollection
+}
+
+func (h hitsIndex) Search(req *bleve.SearchRequest) (*bleve.SearchResult, error) {
+	return &bleve.SearchResult{Request: req, Hits: h.hits, Total: uint64(len(h.hits))}, nil
+}
+
+func TestSearchDocumentation_EEFeaturesDeduplicated(t *testing.T) {
+	setMockFeatureFetcher(t, sharedNamespaceYAML)
+	cleanUp(t)
+	noCache()
+
+	origMgr := indexMgr
+	t.Cleanup(func() { indexMgr = origMgr })
+	idx := Index(hitsIndex{
+		mockIndex: newMockIndex(1),
+		hits: search.DocumentMatchCollection{{
+			ID:     "chunk-1",
+			Fields: map[string]interface{}{"url": "https://www.krakend.io/docs/enterprise/ai-gateway/anthropic/"},
+		}},
+	})
+	indexMgr = &indexHolder{}
+	indexMgr.current.Store(&idx)
+
+	result, _, err := SearchDocumentation(context.Background(), &mcp.CallToolRequest{}, SearchDocumentationInput{Query: "anthropic"})
+	if err != nil {
+		t.Fatalf("SearchDocumentation returned unexpected error: %v", err)
+	}
+	want := []string{"ai/llm"}
+	if got := result.Meta["ee_features"]; !reflect.DeepEqual(got, want) {
+		t.Errorf("ee_features: have %v, want %v", got, want)
+	}
 }

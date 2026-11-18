@@ -164,7 +164,8 @@ func ListFeatures(ctx context.Context, req *mcp.CallToolRequest, input ListFeatu
 				continue
 			}
 		}
-		if filtered && feature.Edition == "ee" {
+		// several features can share a namespace; report each one once
+		if filtered && feature.Edition == "ee" && !slices.Contains(eeOnlyFeatures, feature.Namespace) {
 			eeOnlyFeatures = append(eeOnlyFeatures, feature.Namespace)
 		}
 		summaries = append(summaries, FeatureSummary{

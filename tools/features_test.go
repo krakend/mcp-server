@@ -392,6 +392,52 @@ func TestListFeatures_EESignalOnlyWhenFiltered(t *testing.T) {
 	}
 }
 
+// sharedNamespaceYAML has several EE features documenting the same namespace,
+// like the AI Gateway pages in the real matrix.
+const sharedNamespaceYAML = `
+sections:
+  - name: "AI Gateway"
+    features:
+      - name: "LLM Routing"
+        description: "Route requests to LLM providers"
+        url: "/docs/enterprise/ai-gateway/"
+        ee: true
+        namespaces:
+          - "ai/llm"
+      - name: "Anthropic Integration"
+        description: "Use Anthropic models"
+        url: "/docs/enterprise/ai-gateway/anthropic/"
+        ee: true
+        namespaces:
+          - "ai/llm"
+  - name: "Authentication"
+    features:
+      - name: "API Key Authentication"
+        description: "API key-based authentication"
+        url: "/docs/enterprise/authentication/api-keys/"
+        ee: true
+        namespaces:
+          - "auth/api-keys"
+`
+
+func TestListFeatures_EEFeaturesDeduplicated(t *testing.T) {
+	setMockFeatureFetcher(t, sharedNamespaceYAML)
+	cleanUp(t)
+	noCache()
+
+	result, output, err := ListFeatures(context.Background(), &mcp.CallToolRequest{}, ListFeaturesInput{EE: true})
+	if err != nil {
+		t.Fatalf("ListFeatures returned unexpected error: %v", err)
+	}
+	if output.Count != 3 {
+		t.Errorf("count: have %d, want 3 (the listing itself is not deduplicated)", output.Count)
+	}
+	want := []string{"ai/llm", "auth/api-keys"}
+	if got := result.Meta["ee_features"]; !reflect.DeepEqual(got, want) {
+		t.Errorf("ee_features: have %v, want %v", got, want)
+	}
+}
+
 func TestListFeatures_QueryFilter_NoMatch(t *testing.T) {
 	setMockFeatureFetcher(t, listFeaturesYAML)
 
