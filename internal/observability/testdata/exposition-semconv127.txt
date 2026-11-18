@@ -1,0 +1,731 @@
+# HELP db_client_connections_create_time_milliseconds The time it took to create a new connection.
+# TYPE db_client_connections_create_time_milliseconds histogram
+db_client_connections_create_time_milliseconds_sum{db_system="redis",error_type="none",pool_name="localhost:6379",status="ok"} 0.788958
+db_client_connections_create_time_milliseconds_count{db_system="redis",error_type="none",pool_name="localhost:6379",status="ok"} 2
+# HELP db_client_connections_hits The number of times free connection was found in the pool
+# TYPE db_client_connections_hits gauge
+db_client_connections_hits{db_system="redis",pool_name="localhost:6379"} 1471
+# HELP db_client_connections_idle_max The maximum number of idle open connections allowed
+# TYPE db_client_connections_idle_max gauge
+db_client_connections_idle_max{db_system="redis",pool_name="localhost:6379"} 0
+# HELP db_client_connections_idle_min The minimum number of idle open connections allowed
+# TYPE db_client_connections_idle_min gauge
+db_client_connections_idle_min{db_system="redis",pool_name="localhost:6379"} 0
+# HELP db_client_connections_max The maximum number of open connections allowed
+# TYPE db_client_connections_max gauge
+db_client_connections_max{db_system="redis",pool_name="localhost:6379"} 10
+# HELP db_client_connections_misses The number of times free connection was not found in the pool
+# TYPE db_client_connections_misses gauge
+db_client_connections_misses{db_system="redis",pool_name="localhost:6379"} 2
+# HELP db_client_connections_timeouts The number of connection timeouts that have occurred trying to obtain a connection from the pool
+# TYPE db_client_connections_timeouts gauge
+db_client_connections_timeouts{db_system="redis",pool_name="localhost:6379"} 0
+# HELP db_client_connections_usage The number of connections that are currently in state described by the state attribute
+# TYPE db_client_connections_usage gauge
+db_client_connections_usage{db_system="redis",pool_name="localhost:6379",state="idle"} 2
+db_client_connections_usage{db_system="redis",pool_name="localhost:6379",state="used"} 0
+# HELP db_client_connections_use_time_milliseconds The time between borrowing a connection and returning it to the pool.
+# TYPE db_client_connections_use_time_milliseconds histogram
+db_client_connections_use_time_milliseconds_sum{db_system="redis",error_type="none",pool_name="localhost:6379",status="ok",type="command"} 549.8358299999993
+db_client_connections_use_time_milliseconds_count{db_system="redis",error_type="none",pool_name="localhost:6379",status="ok",type="command"} 1383
+db_client_connections_use_time_milliseconds_sum{db_system="redis",error_type="none",pool_name="localhost:6379",status="ok",type="pipeline"} 32.792707000000014
+db_client_connections_use_time_milliseconds_count{db_system="redis",error_type="none",pool_name="localhost:6379",status="ok",type="pipeline"} 94
+db_client_connections_use_time_milliseconds_sum{db_system="redis",error_type="other",pool_name="localhost:6379",status="error",type="command"} 0.454875
+db_client_connections_use_time_milliseconds_count{db_system="redis",error_type="other",pool_name="localhost:6379",status="error",type="command"} 1
+# HELP db_client_connections_waits The number of times a connection was waited for
+# TYPE db_client_connections_waits gauge
+db_client_connections_waits{db_system="redis",pool_name="localhost:6379"} 0
+# HELP db_client_connections_waits_duration_nanoseconds The total time spent for waiting a connection in nanoseconds
+# TYPE db_client_connections_waits_duration_nanoseconds gauge
+db_client_connections_waits_duration_nanoseconds{db_system="redis",pool_name="localhost:6379"} 0
+# HELP http_client_request_body_size_bytes Size of HTTP client request bodies.
+# TYPE http_client_request_body_size_bytes histogram
+http_client_request_body_size_bytes_sum{clientname="/",http_request_method="POST",http_response_status_code="200",http_route="/",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/routed",server_address="localhost",server_port="8096"} 0
+http_client_request_body_size_bytes_count{clientname="/",http_request_method="POST",http_response_status_code="200",http_route="/",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/routed",server_address="localhost",server_port="8096"} 92
+http_client_request_body_size_bytes_sum{clientname="/:file",http_request_method="GET",http_response_status_code="200",http_route="/:file",krakend_endpoint_method="GET",krakend_endpoint_route="/files/:file",server_address="localhost",server_port="8280"} 0
+http_client_request_body_size_bytes_count{clientname="/:file",http_request_method="GET",http_response_status_code="200",http_route="/:file",krakend_endpoint_method="GET",krakend_endpoint_route="/files/:file",server_address="localhost",server_port="8280"} 46
+http_client_request_body_size_bytes_sum{clientname="/__debug/admin",http_request_method="GET",http_response_status_code="200",http_route="/__debug/admin",krakend_endpoint_method="GET",krakend_endpoint_route="/admin",server_address="localhost",server_port="8280"} 0
+http_client_request_body_size_bytes_count{clientname="/__debug/admin",http_request_method="GET",http_response_status_code="200",http_route="/__debug/admin",krakend_endpoint_method="GET",krakend_endpoint_route="/admin",server_address="localhost",server_port="8280"} 46
+http_client_request_body_size_bytes_sum{clientname="/__debug/basic",http_request_method="GET",http_response_status_code="200",http_route="/__debug/basic",krakend_endpoint_method="GET",krakend_endpoint_route="/basic",server_address="localhost",server_port="8280"} 0
+http_client_request_body_size_bytes_count{clientname="/__debug/basic",http_request_method="GET",http_response_status_code="200",http_route="/__debug/basic",krakend_endpoint_method="GET",krakend_endpoint_route="/basic",server_address="localhost",server_port="8280"} 46
+http_client_request_body_size_bytes_sum{clientname="/__debug/cc",http_request_method="GET",http_response_status_code="0",http_route="/__debug/cc",krakend_endpoint_method="GET",krakend_endpoint_route="/backend-auth",server_address="localhost",server_port="8280"} 0
+http_client_request_body_size_bytes_count{clientname="/__debug/cc",http_request_method="GET",http_response_status_code="0",http_route="/__debug/cc",krakend_endpoint_method="GET",krakend_endpoint_route="/backend-auth",server_address="localhost",server_port="8280"} 46
+http_client_request_body_size_bytes_sum{clientname="/__debug/fallback",http_request_method="GET",http_response_status_code="200",http_route="/__debug/fallback",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional",server_address="localhost",server_port="8280"} 0
+http_client_request_body_size_bytes_count{clientname="/__debug/fallback",http_request_method="GET",http_response_status_code="200",http_route="/__debug/fallback",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional",server_address="localhost",server_port="8280"} 46
+http_client_request_body_size_bytes_sum{clientname="/__debug/graphql",http_request_method="POST",http_response_status_code="200",http_route="/__debug/graphql",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters",server_address="localhost",server_port="8280"} 966
+http_client_request_body_size_bytes_count{clientname="/__debug/graphql",http_request_method="POST",http_response_status_code="200",http_route="/__debug/graphql",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters",server_address="localhost",server_port="8280"} 46
+http_client_request_body_size_bytes_sum{clientname="/__debug/ntlm",http_request_method="GET",http_response_status_code="200",http_route="/__debug/ntlm",krakend_endpoint_method="GET",krakend_endpoint_route="/backend-auth",server_address="localhost",server_port="8280"} 0
+http_client_request_body_size_bytes_count{clientname="/__debug/ntlm",http_request_method="GET",http_response_status_code="200",http_route="/__debug/ntlm",krakend_endpoint_method="GET",krakend_endpoint_route="/backend-auth",server_address="localhost",server_port="8280"} 46
+http_client_request_body_size_bytes_sum{clientname="/__debug/primary",http_request_method="GET",http_response_status_code="200",http_route="/__debug/primary",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow",server_address="localhost",server_port="8280"} 0
+http_client_request_body_size_bytes_count{clientname="/__debug/primary",http_request_method="GET",http_response_status_code="200",http_route="/__debug/primary",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow",server_address="localhost",server_port="8280"} 46
+http_client_request_body_size_bytes_sum{clientname="/__debug/secure/:id",http_request_method="GET",http_response_status_code="200",http_route="/__debug/secure/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/secure/:id",server_address="localhost",server_port="8280"} 0
+http_client_request_body_size_bytes_count{clientname="/__debug/secure/:id",http_request_method="GET",http_response_status_code="200",http_route="/__debug/secure/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/secure/:id",server_address="localhost",server_port="8280"} 46
+http_client_request_body_size_bytes_sum{clientname="/__debug/shadow",http_request_method="GET",http_response_status_code="200",http_route="/__debug/shadow",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow",server_address="localhost",server_port="8280"} 0
+http_client_request_body_size_bytes_count{clientname="/__debug/shadow",http_request_method="GET",http_response_status_code="200",http_route="/__debug/shadow",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow",server_address="localhost",server_port="8280"} 46
+http_client_request_body_size_bytes_sum{clientname="/__debug/soap",http_request_method="POST",http_response_status_code="200",http_route="/__debug/soap",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters",server_address="localhost",server_port="8280"} 1932
+http_client_request_body_size_bytes_count{clientname="/__debug/soap",http_request_method="POST",http_response_status_code="200",http_route="/__debug/soap",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters",server_address="localhost",server_port="8280"} 46
+http_client_request_body_size_bytes_sum{clientname="/__debug/step1/:id",http_request_method="GET",http_response_status_code="200",http_route="/__debug/step1/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/workflow/:id",server_address="localhost",server_port="8280"} 0
+http_client_request_body_size_bytes_count{clientname="/__debug/step1/:id",http_request_method="GET",http_response_status_code="200",http_route="/__debug/step1/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/workflow/:id",server_address="localhost",server_port="8280"} 46
+http_client_request_body_size_bytes_sum{clientname="/__debug/token",http_request_method="POST",http_response_status_code="200",http_route="/__debug/token",krakend_endpoint_method="POST",krakend_endpoint_route="/token",server_address="localhost",server_port="8280"} 0
+http_client_request_body_size_bytes_count{clientname="/__debug/token",http_request_method="POST",http_response_status_code="200",http_route="/__debug/token",krakend_endpoint_method="POST",krakend_endpoint_route="/token",server_address="localhost",server_port="8280"} 46
+http_client_request_body_size_bytes_sum{clientname="/__debug/variant-a",http_request_method="GET",http_response_status_code="200",http_route="/__debug/variant-a",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional",server_address="localhost",server_port="8280"} 0
+http_client_request_body_size_bytes_count{clientname="/__debug/variant-a",http_request_method="GET",http_response_status_code="200",http_route="/__debug/variant-a",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional",server_address="localhost",server_port="8280"} 46
+http_client_request_body_size_bytes_sum{clientname="/__debug/wf-inner/:id",http_request_method="GET",http_response_status_code="200",http_route="/__debug/wf-inner/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/wf/:id",server_address="localhost",server_port="8280"} 0
+http_client_request_body_size_bytes_count{clientname="/__debug/wf-inner/:id",http_request_method="GET",http_response_status_code="200",http_route="/__debug/wf-inner/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/wf/:id",server_address="localhost",server_port="8280"} 46
+http_client_request_body_size_bytes_sum{clientname="/__echo/a",http_request_method="POST",http_response_status_code="200",http_route="/__echo/a",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate",server_address="localhost",server_port="8280"} 920
+http_client_request_body_size_bytes_count{clientname="/__echo/a",http_request_method="POST",http_response_status_code="200",http_route="/__echo/a",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate",server_address="localhost",server_port="8280"} 46
+http_client_request_body_size_bytes_sum{clientname="/__echo/b",http_request_method="POST",http_response_status_code="200",http_route="/__echo/b",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate",server_address="localhost",server_port="8280"} 1840
+http_client_request_body_size_bytes_count{clientname="/__echo/b",http_request_method="POST",http_response_status_code="200",http_route="/__echo/b",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate",server_address="localhost",server_port="8280"} 46
+http_client_request_body_size_bytes_sum{clientname="/fail",http_request_method="GET",http_response_status_code="503",http_route="/fail",krakend_endpoint_method="GET",krakend_endpoint_route="/breaker",server_address="localhost",server_port="8096"} 0
+http_client_request_body_size_bytes_count{clientname="/fail",http_request_method="GET",http_response_status_code="503",http_route="/fail",krakend_endpoint_method="GET",krakend_endpoint_route="/breaker",server_address="localhost",server_port="8096"} 25
+http_client_request_body_size_bytes_sum{clientname="/v1/responses",http_request_method="POST",http_response_status_code="200",http_route="/v1/responses",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/chat",server_address="localhost",server_port="8096"} 12558
+http_client_request_body_size_bytes_count{clientname="/v1/responses",http_request_method="POST",http_response_status_code="200",http_route="/v1/responses",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/chat",server_address="localhost",server_port="8096"} 138
+# HELP http_client_request_dns_duration_seconds Time spent resolving the DNS name
+# TYPE http_client_request_dns_duration_seconds histogram
+http_client_request_dns_duration_seconds_sum{clientname="/",http_request_method="POST",http_response_status_code="200",http_route="/",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/routed",server_address="localhost",server_port="8096"} 0.019708419999999994
+http_client_request_dns_duration_seconds_count{clientname="/",http_request_method="POST",http_response_status_code="200",http_route="/",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/routed",server_address="localhost",server_port="8096"} 92
+http_client_request_dns_duration_seconds_sum{clientname="/:file",http_request_method="GET",http_response_status_code="200",http_route="/:file",krakend_endpoint_method="GET",krakend_endpoint_route="/files/:file",server_address="localhost",server_port="8280"} 0
+http_client_request_dns_duration_seconds_count{clientname="/:file",http_request_method="GET",http_response_status_code="200",http_route="/:file",krakend_endpoint_method="GET",krakend_endpoint_route="/files/:file",server_address="localhost",server_port="8280"} 46
+http_client_request_dns_duration_seconds_sum{clientname="/__debug/admin",http_request_method="GET",http_response_status_code="200",http_route="/__debug/admin",krakend_endpoint_method="GET",krakend_endpoint_route="/admin",server_address="localhost",server_port="8280"} 0
+http_client_request_dns_duration_seconds_count{clientname="/__debug/admin",http_request_method="GET",http_response_status_code="200",http_route="/__debug/admin",krakend_endpoint_method="GET",krakend_endpoint_route="/admin",server_address="localhost",server_port="8280"} 46
+http_client_request_dns_duration_seconds_sum{clientname="/__debug/basic",http_request_method="GET",http_response_status_code="200",http_route="/__debug/basic",krakend_endpoint_method="GET",krakend_endpoint_route="/basic",server_address="localhost",server_port="8280"} 0
+http_client_request_dns_duration_seconds_count{clientname="/__debug/basic",http_request_method="GET",http_response_status_code="200",http_route="/__debug/basic",krakend_endpoint_method="GET",krakend_endpoint_route="/basic",server_address="localhost",server_port="8280"} 46
+http_client_request_dns_duration_seconds_sum{clientname="/__debug/cc",http_request_method="GET",http_response_status_code="0",http_route="/__debug/cc",krakend_endpoint_method="GET",krakend_endpoint_route="/backend-auth",server_address="localhost",server_port="8280"} 0
+http_client_request_dns_duration_seconds_count{clientname="/__debug/cc",http_request_method="GET",http_response_status_code="0",http_route="/__debug/cc",krakend_endpoint_method="GET",krakend_endpoint_route="/backend-auth",server_address="localhost",server_port="8280"} 46
+http_client_request_dns_duration_seconds_sum{clientname="/__debug/fallback",http_request_method="GET",http_response_status_code="200",http_route="/__debug/fallback",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional",server_address="localhost",server_port="8280"} 0
+http_client_request_dns_duration_seconds_count{clientname="/__debug/fallback",http_request_method="GET",http_response_status_code="200",http_route="/__debug/fallback",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional",server_address="localhost",server_port="8280"} 46
+http_client_request_dns_duration_seconds_sum{clientname="/__debug/graphql",http_request_method="POST",http_response_status_code="200",http_route="/__debug/graphql",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters",server_address="localhost",server_port="8280"} 0
+http_client_request_dns_duration_seconds_count{clientname="/__debug/graphql",http_request_method="POST",http_response_status_code="200",http_route="/__debug/graphql",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters",server_address="localhost",server_port="8280"} 46
+http_client_request_dns_duration_seconds_sum{clientname="/__debug/ntlm",http_request_method="GET",http_response_status_code="200",http_route="/__debug/ntlm",krakend_endpoint_method="GET",krakend_endpoint_route="/backend-auth",server_address="localhost",server_port="8280"} 0.000501126
+http_client_request_dns_duration_seconds_count{clientname="/__debug/ntlm",http_request_method="GET",http_response_status_code="200",http_route="/__debug/ntlm",krakend_endpoint_method="GET",krakend_endpoint_route="/backend-auth",server_address="localhost",server_port="8280"} 46
+http_client_request_dns_duration_seconds_sum{clientname="/__debug/primary",http_request_method="GET",http_response_status_code="200",http_route="/__debug/primary",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow",server_address="localhost",server_port="8280"} 0.006802417
+http_client_request_dns_duration_seconds_count{clientname="/__debug/primary",http_request_method="GET",http_response_status_code="200",http_route="/__debug/primary",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow",server_address="localhost",server_port="8280"} 46
+http_client_request_dns_duration_seconds_sum{clientname="/__debug/secure/:id",http_request_method="GET",http_response_status_code="200",http_route="/__debug/secure/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/secure/:id",server_address="localhost",server_port="8280"} 0.000234125
+http_client_request_dns_duration_seconds_count{clientname="/__debug/secure/:id",http_request_method="GET",http_response_status_code="200",http_route="/__debug/secure/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/secure/:id",server_address="localhost",server_port="8280"} 46
+http_client_request_dns_duration_seconds_sum{clientname="/__debug/shadow",http_request_method="GET",http_response_status_code="200",http_route="/__debug/shadow",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow",server_address="localhost",server_port="8280"} 0.013074334
+http_client_request_dns_duration_seconds_count{clientname="/__debug/shadow",http_request_method="GET",http_response_status_code="200",http_route="/__debug/shadow",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow",server_address="localhost",server_port="8280"} 46
+http_client_request_dns_duration_seconds_sum{clientname="/__debug/soap",http_request_method="POST",http_response_status_code="200",http_route="/__debug/soap",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters",server_address="localhost",server_port="8280"} 0
+http_client_request_dns_duration_seconds_count{clientname="/__debug/soap",http_request_method="POST",http_response_status_code="200",http_route="/__debug/soap",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters",server_address="localhost",server_port="8280"} 46
+http_client_request_dns_duration_seconds_sum{clientname="/__debug/step1/:id",http_request_method="GET",http_response_status_code="200",http_route="/__debug/step1/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/workflow/:id",server_address="localhost",server_port="8280"} 0
+http_client_request_dns_duration_seconds_count{clientname="/__debug/step1/:id",http_request_method="GET",http_response_status_code="200",http_route="/__debug/step1/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/workflow/:id",server_address="localhost",server_port="8280"} 46
+http_client_request_dns_duration_seconds_sum{clientname="/__debug/token",http_request_method="POST",http_response_status_code="200",http_route="/__debug/token",krakend_endpoint_method="POST",krakend_endpoint_route="/token",server_address="localhost",server_port="8280"} 0.000149917
+http_client_request_dns_duration_seconds_count{clientname="/__debug/token",http_request_method="POST",http_response_status_code="200",http_route="/__debug/token",krakend_endpoint_method="POST",krakend_endpoint_route="/token",server_address="localhost",server_port="8280"} 46
+http_client_request_dns_duration_seconds_sum{clientname="/__debug/variant-a",http_request_method="GET",http_response_status_code="200",http_route="/__debug/variant-a",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional",server_address="localhost",server_port="8280"} 0
+http_client_request_dns_duration_seconds_count{clientname="/__debug/variant-a",http_request_method="GET",http_response_status_code="200",http_route="/__debug/variant-a",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional",server_address="localhost",server_port="8280"} 46
+http_client_request_dns_duration_seconds_sum{clientname="/__debug/wf-inner/:id",http_request_method="GET",http_response_status_code="200",http_route="/__debug/wf-inner/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/wf/:id",server_address="localhost",server_port="8280"} 0
+http_client_request_dns_duration_seconds_count{clientname="/__debug/wf-inner/:id",http_request_method="GET",http_response_status_code="200",http_route="/__debug/wf-inner/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/wf/:id",server_address="localhost",server_port="8280"} 46
+http_client_request_dns_duration_seconds_sum{clientname="/__echo/a",http_request_method="POST",http_response_status_code="200",http_route="/__echo/a",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate",server_address="localhost",server_port="8280"} 0
+http_client_request_dns_duration_seconds_count{clientname="/__echo/a",http_request_method="POST",http_response_status_code="200",http_route="/__echo/a",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate",server_address="localhost",server_port="8280"} 46
+http_client_request_dns_duration_seconds_sum{clientname="/__echo/b",http_request_method="POST",http_response_status_code="200",http_route="/__echo/b",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate",server_address="localhost",server_port="8280"} 0.000565333
+http_client_request_dns_duration_seconds_count{clientname="/__echo/b",http_request_method="POST",http_response_status_code="200",http_route="/__echo/b",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate",server_address="localhost",server_port="8280"} 46
+http_client_request_dns_duration_seconds_sum{clientname="/fail",http_request_method="GET",http_response_status_code="503",http_route="/fail",krakend_endpoint_method="GET",krakend_endpoint_route="/breaker",server_address="localhost",server_port="8096"} 0.010296376
+http_client_request_dns_duration_seconds_count{clientname="/fail",http_request_method="GET",http_response_status_code="503",http_route="/fail",krakend_endpoint_method="GET",krakend_endpoint_route="/breaker",server_address="localhost",server_port="8096"} 25
+http_client_request_dns_duration_seconds_sum{clientname="/v1/responses",http_request_method="POST",http_response_status_code="200",http_route="/v1/responses",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/chat",server_address="localhost",server_port="8096"} 0.045165249000000005
+http_client_request_dns_duration_seconds_count{clientname="/v1/responses",http_request_method="POST",http_response_status_code="200",http_route="/v1/responses",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/chat",server_address="localhost",server_port="8096"} 138
+# HELP http_client_request_duration_seconds Duration of HTTP client requests.
+# TYPE http_client_request_duration_seconds histogram
+http_client_request_duration_seconds_sum{clientname="/",http_request_method="POST",http_response_status_code="200",http_route="/",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/routed",server_address="localhost",server_port="8096"} 0.14652599600000002
+http_client_request_duration_seconds_count{clientname="/",http_request_method="POST",http_response_status_code="200",http_route="/",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/routed",server_address="localhost",server_port="8096"} 92
+http_client_request_duration_seconds_sum{clientname="/:file",http_request_method="GET",http_response_status_code="200",http_route="/:file",krakend_endpoint_method="GET",krakend_endpoint_route="/files/:file",server_address="localhost",server_port="8280"} 0.009095333999999998
+http_client_request_duration_seconds_count{clientname="/:file",http_request_method="GET",http_response_status_code="200",http_route="/:file",krakend_endpoint_method="GET",krakend_endpoint_route="/files/:file",server_address="localhost",server_port="8280"} 46
+http_client_request_duration_seconds_sum{clientname="/__debug/admin",http_request_method="GET",http_response_status_code="200",http_route="/__debug/admin",krakend_endpoint_method="GET",krakend_endpoint_route="/admin",server_address="localhost",server_port="8280"} 0.034511046000000004
+http_client_request_duration_seconds_count{clientname="/__debug/admin",http_request_method="GET",http_response_status_code="200",http_route="/__debug/admin",krakend_endpoint_method="GET",krakend_endpoint_route="/admin",server_address="localhost",server_port="8280"} 46
+http_client_request_duration_seconds_sum{clientname="/__debug/basic",http_request_method="GET",http_response_status_code="200",http_route="/__debug/basic",krakend_endpoint_method="GET",krakend_endpoint_route="/basic",server_address="localhost",server_port="8280"} 0.018514659000000003
+http_client_request_duration_seconds_count{clientname="/__debug/basic",http_request_method="GET",http_response_status_code="200",http_route="/__debug/basic",krakend_endpoint_method="GET",krakend_endpoint_route="/basic",server_address="localhost",server_port="8280"} 46
+http_client_request_duration_seconds_sum{clientname="/__debug/cc",http_request_method="GET",http_response_status_code="0",http_route="/__debug/cc",krakend_endpoint_method="GET",krakend_endpoint_route="/backend-auth",server_address="localhost",server_port="8280"} 0.07175908099999999
+http_client_request_duration_seconds_count{clientname="/__debug/cc",http_request_method="GET",http_response_status_code="0",http_route="/__debug/cc",krakend_endpoint_method="GET",krakend_endpoint_route="/backend-auth",server_address="localhost",server_port="8280"} 46
+http_client_request_duration_seconds_sum{clientname="/__debug/fallback",http_request_method="GET",http_response_status_code="200",http_route="/__debug/fallback",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional",server_address="localhost",server_port="8280"} 0.019350498999999997
+http_client_request_duration_seconds_count{clientname="/__debug/fallback",http_request_method="GET",http_response_status_code="200",http_route="/__debug/fallback",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional",server_address="localhost",server_port="8280"} 46
+http_client_request_duration_seconds_sum{clientname="/__debug/graphql",http_request_method="POST",http_response_status_code="200",http_route="/__debug/graphql",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters",server_address="localhost",server_port="8280"} 0.029739416000000008
+http_client_request_duration_seconds_count{clientname="/__debug/graphql",http_request_method="POST",http_response_status_code="200",http_route="/__debug/graphql",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters",server_address="localhost",server_port="8280"} 46
+http_client_request_duration_seconds_sum{clientname="/__debug/ntlm",http_request_method="GET",http_response_status_code="200",http_route="/__debug/ntlm",krakend_endpoint_method="GET",krakend_endpoint_route="/backend-auth",server_address="localhost",server_port="8280"} 0.026562628999999997
+http_client_request_duration_seconds_count{clientname="/__debug/ntlm",http_request_method="GET",http_response_status_code="200",http_route="/__debug/ntlm",krakend_endpoint_method="GET",krakend_endpoint_route="/backend-auth",server_address="localhost",server_port="8280"} 46
+http_client_request_duration_seconds_sum{clientname="/__debug/primary",http_request_method="GET",http_response_status_code="200",http_route="/__debug/primary",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow",server_address="localhost",server_port="8280"} 0.023710001999999994
+http_client_request_duration_seconds_count{clientname="/__debug/primary",http_request_method="GET",http_response_status_code="200",http_route="/__debug/primary",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow",server_address="localhost",server_port="8280"} 46
+http_client_request_duration_seconds_sum{clientname="/__debug/secure/:id",http_request_method="GET",http_response_status_code="200",http_route="/__debug/secure/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/secure/:id",server_address="localhost",server_port="8280"} 0.024700579999999996
+http_client_request_duration_seconds_count{clientname="/__debug/secure/:id",http_request_method="GET",http_response_status_code="200",http_route="/__debug/secure/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/secure/:id",server_address="localhost",server_port="8280"} 46
+http_client_request_duration_seconds_sum{clientname="/__debug/shadow",http_request_method="GET",http_response_status_code="200",http_route="/__debug/shadow",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow",server_address="localhost",server_port="8280"} 0.028386873
+http_client_request_duration_seconds_count{clientname="/__debug/shadow",http_request_method="GET",http_response_status_code="200",http_route="/__debug/shadow",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow",server_address="localhost",server_port="8280"} 46
+http_client_request_duration_seconds_sum{clientname="/__debug/soap",http_request_method="POST",http_response_status_code="200",http_route="/__debug/soap",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters",server_address="localhost",server_port="8280"} 0.032564084
+http_client_request_duration_seconds_count{clientname="/__debug/soap",http_request_method="POST",http_response_status_code="200",http_route="/__debug/soap",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters",server_address="localhost",server_port="8280"} 46
+http_client_request_duration_seconds_sum{clientname="/__debug/step1/:id",http_request_method="GET",http_response_status_code="200",http_route="/__debug/step1/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/workflow/:id",server_address="localhost",server_port="8280"} 0.020589584999999997
+http_client_request_duration_seconds_count{clientname="/__debug/step1/:id",http_request_method="GET",http_response_status_code="200",http_route="/__debug/step1/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/workflow/:id",server_address="localhost",server_port="8280"} 46
+http_client_request_duration_seconds_sum{clientname="/__debug/token",http_request_method="POST",http_response_status_code="200",http_route="/__debug/token",krakend_endpoint_method="POST",krakend_endpoint_route="/token",server_address="localhost",server_port="8280"} 0.040265997000000005
+http_client_request_duration_seconds_count{clientname="/__debug/token",http_request_method="POST",http_response_status_code="200",http_route="/__debug/token",krakend_endpoint_method="POST",krakend_endpoint_route="/token",server_address="localhost",server_port="8280"} 46
+http_client_request_duration_seconds_sum{clientname="/__debug/variant-a",http_request_method="GET",http_response_status_code="200",http_route="/__debug/variant-a",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional",server_address="localhost",server_port="8280"} 0.026851166999999995
+http_client_request_duration_seconds_count{clientname="/__debug/variant-a",http_request_method="GET",http_response_status_code="200",http_route="/__debug/variant-a",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional",server_address="localhost",server_port="8280"} 46
+http_client_request_duration_seconds_sum{clientname="/__debug/wf-inner/:id",http_request_method="GET",http_response_status_code="200",http_route="/__debug/wf-inner/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/wf/:id",server_address="localhost",server_port="8280"} 0.030295001
+http_client_request_duration_seconds_count{clientname="/__debug/wf-inner/:id",http_request_method="GET",http_response_status_code="200",http_route="/__debug/wf-inner/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/wf/:id",server_address="localhost",server_port="8280"} 46
+http_client_request_duration_seconds_sum{clientname="/__echo/a",http_request_method="POST",http_response_status_code="200",http_route="/__echo/a",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate",server_address="localhost",server_port="8280"} 0.03276416800000001
+http_client_request_duration_seconds_count{clientname="/__echo/a",http_request_method="POST",http_response_status_code="200",http_route="/__echo/a",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate",server_address="localhost",server_port="8280"} 46
+http_client_request_duration_seconds_sum{clientname="/__echo/b",http_request_method="POST",http_response_status_code="200",http_route="/__echo/b",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate",server_address="localhost",server_port="8280"} 0.02789737700000001
+http_client_request_duration_seconds_count{clientname="/__echo/b",http_request_method="POST",http_response_status_code="200",http_route="/__echo/b",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate",server_address="localhost",server_port="8280"} 46
+http_client_request_duration_seconds_sum{clientname="/fail",http_request_method="GET",http_response_status_code="503",http_route="/fail",krakend_endpoint_method="GET",krakend_endpoint_route="/breaker",server_address="localhost",server_port="8096"} 0.061797831
+http_client_request_duration_seconds_count{clientname="/fail",http_request_method="GET",http_response_status_code="503",http_route="/fail",krakend_endpoint_method="GET",krakend_endpoint_route="/breaker",server_address="localhost",server_port="8096"} 25
+http_client_request_duration_seconds_sum{clientname="/v1/responses",http_request_method="POST",http_response_status_code="200",http_route="/v1/responses",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/chat",server_address="localhost",server_port="8096"} 0.29113391099999986
+http_client_request_duration_seconds_count{clientname="/v1/responses",http_request_method="POST",http_response_status_code="200",http_route="/v1/responses",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/chat",server_address="localhost",server_port="8096"} 138
+# HELP http_client_request_failed_count_total 
+# TYPE http_client_request_failed_count_total counter
+http_client_request_failed_count_total{clientname="/__debug/cc",http_request_method="GET",http_response_status_code="0",http_route="/__debug/cc",krakend_endpoint_method="GET",krakend_endpoint_route="/backend-auth",server_address="localhost",server_port="8280"} 46
+# HELP http_client_request_get_conn_duration_seconds Time spent acquiring a client connection
+# TYPE http_client_request_get_conn_duration_seconds histogram
+http_client_request_get_conn_duration_seconds_sum{clientname="/",http_request_method="POST",http_response_status_code="200",http_route="/",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/routed",server_address="localhost",server_port="8096"} 0.035859002000000015
+http_client_request_get_conn_duration_seconds_count{clientname="/",http_request_method="POST",http_response_status_code="200",http_route="/",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/routed",server_address="localhost",server_port="8096"} 92
+http_client_request_get_conn_duration_seconds_sum{clientname="/:file",http_request_method="GET",http_response_status_code="200",http_route="/:file",krakend_endpoint_method="GET",krakend_endpoint_route="/files/:file",server_address="localhost",server_port="8280"} 0
+http_client_request_get_conn_duration_seconds_count{clientname="/:file",http_request_method="GET",http_response_status_code="200",http_route="/:file",krakend_endpoint_method="GET",krakend_endpoint_route="/files/:file",server_address="localhost",server_port="8280"} 46
+http_client_request_get_conn_duration_seconds_sum{clientname="/__debug/admin",http_request_method="GET",http_response_status_code="200",http_route="/__debug/admin",krakend_endpoint_method="GET",krakend_endpoint_route="/admin",server_address="localhost",server_port="8280"} 0.000163543
+http_client_request_get_conn_duration_seconds_count{clientname="/__debug/admin",http_request_method="GET",http_response_status_code="200",http_route="/__debug/admin",krakend_endpoint_method="GET",krakend_endpoint_route="/admin",server_address="localhost",server_port="8280"} 46
+http_client_request_get_conn_duration_seconds_sum{clientname="/__debug/basic",http_request_method="GET",http_response_status_code="200",http_route="/__debug/basic",krakend_endpoint_method="GET",krakend_endpoint_route="/basic",server_address="localhost",server_port="8280"} 0.00014088000000000002
+http_client_request_get_conn_duration_seconds_count{clientname="/__debug/basic",http_request_method="GET",http_response_status_code="200",http_route="/__debug/basic",krakend_endpoint_method="GET",krakend_endpoint_route="/basic",server_address="localhost",server_port="8280"} 46
+http_client_request_get_conn_duration_seconds_sum{clientname="/__debug/cc",http_request_method="GET",http_response_status_code="0",http_route="/__debug/cc",krakend_endpoint_method="GET",krakend_endpoint_route="/backend-auth",server_address="localhost",server_port="8280"} 0
+http_client_request_get_conn_duration_seconds_count{clientname="/__debug/cc",http_request_method="GET",http_response_status_code="0",http_route="/__debug/cc",krakend_endpoint_method="GET",krakend_endpoint_route="/backend-auth",server_address="localhost",server_port="8280"} 46
+http_client_request_get_conn_duration_seconds_sum{clientname="/__debug/fallback",http_request_method="GET",http_response_status_code="200",http_route="/__debug/fallback",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional",server_address="localhost",server_port="8280"} 0.00010400399999999999
+http_client_request_get_conn_duration_seconds_count{clientname="/__debug/fallback",http_request_method="GET",http_response_status_code="200",http_route="/__debug/fallback",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional",server_address="localhost",server_port="8280"} 46
+http_client_request_get_conn_duration_seconds_sum{clientname="/__debug/graphql",http_request_method="POST",http_response_status_code="200",http_route="/__debug/graphql",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters",server_address="localhost",server_port="8280"} 9.841799999999999e-05
+http_client_request_get_conn_duration_seconds_count{clientname="/__debug/graphql",http_request_method="POST",http_response_status_code="200",http_route="/__debug/graphql",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters",server_address="localhost",server_port="8280"} 46
+http_client_request_get_conn_duration_seconds_sum{clientname="/__debug/ntlm",http_request_method="GET",http_response_status_code="200",http_route="/__debug/ntlm",krakend_endpoint_method="GET",krakend_endpoint_route="/backend-auth",server_address="localhost",server_port="8280"} 0.0006890029999999998
+http_client_request_get_conn_duration_seconds_count{clientname="/__debug/ntlm",http_request_method="GET",http_response_status_code="200",http_route="/__debug/ntlm",krakend_endpoint_method="GET",krakend_endpoint_route="/backend-auth",server_address="localhost",server_port="8280"} 46
+http_client_request_get_conn_duration_seconds_sum{clientname="/__debug/primary",http_request_method="GET",http_response_status_code="200",http_route="/__debug/primary",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow",server_address="localhost",server_port="8280"} 0.006190705000000001
+http_client_request_get_conn_duration_seconds_count{clientname="/__debug/primary",http_request_method="GET",http_response_status_code="200",http_route="/__debug/primary",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow",server_address="localhost",server_port="8280"} 46
+http_client_request_get_conn_duration_seconds_sum{clientname="/__debug/secure/:id",http_request_method="GET",http_response_status_code="200",http_route="/__debug/secure/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/secure/:id",server_address="localhost",server_port="8280"} 0.0002952530000000001
+http_client_request_get_conn_duration_seconds_count{clientname="/__debug/secure/:id",http_request_method="GET",http_response_status_code="200",http_route="/__debug/secure/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/secure/:id",server_address="localhost",server_port="8280"} 46
+http_client_request_get_conn_duration_seconds_sum{clientname="/__debug/shadow",http_request_method="GET",http_response_status_code="200",http_route="/__debug/shadow",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow",server_address="localhost",server_port="8280"} 0.009706124999999998
+http_client_request_get_conn_duration_seconds_count{clientname="/__debug/shadow",http_request_method="GET",http_response_status_code="200",http_route="/__debug/shadow",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow",server_address="localhost",server_port="8280"} 46
+http_client_request_get_conn_duration_seconds_sum{clientname="/__debug/soap",http_request_method="POST",http_response_status_code="200",http_route="/__debug/soap",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters",server_address="localhost",server_port="8280"} 0.000127713
+http_client_request_get_conn_duration_seconds_count{clientname="/__debug/soap",http_request_method="POST",http_response_status_code="200",http_route="/__debug/soap",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters",server_address="localhost",server_port="8280"} 46
+http_client_request_get_conn_duration_seconds_sum{clientname="/__debug/step1/:id",http_request_method="GET",http_response_status_code="200",http_route="/__debug/step1/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/workflow/:id",server_address="localhost",server_port="8280"} 9.945700000000002e-05
+http_client_request_get_conn_duration_seconds_count{clientname="/__debug/step1/:id",http_request_method="GET",http_response_status_code="200",http_route="/__debug/step1/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/workflow/:id",server_address="localhost",server_port="8280"} 46
+http_client_request_get_conn_duration_seconds_sum{clientname="/__debug/token",http_request_method="POST",http_response_status_code="200",http_route="/__debug/token",krakend_endpoint_method="POST",krakend_endpoint_route="/token",server_address="localhost",server_port="8280"} 0.0007911229999999999
+http_client_request_get_conn_duration_seconds_count{clientname="/__debug/token",http_request_method="POST",http_response_status_code="200",http_route="/__debug/token",krakend_endpoint_method="POST",krakend_endpoint_route="/token",server_address="localhost",server_port="8280"} 46
+http_client_request_get_conn_duration_seconds_sum{clientname="/__debug/variant-a",http_request_method="GET",http_response_status_code="200",http_route="/__debug/variant-a",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional",server_address="localhost",server_port="8280"} 0.00010820499999999998
+http_client_request_get_conn_duration_seconds_count{clientname="/__debug/variant-a",http_request_method="GET",http_response_status_code="200",http_route="/__debug/variant-a",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional",server_address="localhost",server_port="8280"} 46
+http_client_request_get_conn_duration_seconds_sum{clientname="/__debug/wf-inner/:id",http_request_method="GET",http_response_status_code="200",http_route="/__debug/wf-inner/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/wf/:id",server_address="localhost",server_port="8280"} 7.379200000000001e-05
+http_client_request_get_conn_duration_seconds_count{clientname="/__debug/wf-inner/:id",http_request_method="GET",http_response_status_code="200",http_route="/__debug/wf-inner/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/wf/:id",server_address="localhost",server_port="8280"} 46
+http_client_request_get_conn_duration_seconds_sum{clientname="/__echo/a",http_request_method="POST",http_response_status_code="200",http_route="/__echo/a",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate",server_address="localhost",server_port="8280"} 9.974800000000001e-05
+http_client_request_get_conn_duration_seconds_count{clientname="/__echo/a",http_request_method="POST",http_response_status_code="200",http_route="/__echo/a",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate",server_address="localhost",server_port="8280"} 46
+http_client_request_get_conn_duration_seconds_sum{clientname="/__echo/b",http_request_method="POST",http_response_status_code="200",http_route="/__echo/b",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate",server_address="localhost",server_port="8280"} 0.0010765059999999999
+http_client_request_get_conn_duration_seconds_count{clientname="/__echo/b",http_request_method="POST",http_response_status_code="200",http_route="/__echo/b",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate",server_address="localhost",server_port="8280"} 46
+http_client_request_get_conn_duration_seconds_sum{clientname="/fail",http_request_method="GET",http_response_status_code="503",http_route="/fail",krakend_endpoint_method="GET",krakend_endpoint_route="/breaker",server_address="localhost",server_port="8096"} 0.015805706
+http_client_request_get_conn_duration_seconds_count{clientname="/fail",http_request_method="GET",http_response_status_code="503",http_route="/fail",krakend_endpoint_method="GET",krakend_endpoint_route="/breaker",server_address="localhost",server_port="8096"} 25
+http_client_request_get_conn_duration_seconds_sum{clientname="/v1/responses",http_request_method="POST",http_response_status_code="200",http_route="/v1/responses",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/chat",server_address="localhost",server_port="8096"} 0.07305612499999999
+http_client_request_get_conn_duration_seconds_count{clientname="/v1/responses",http_request_method="POST",http_response_status_code="200",http_route="/v1/responses",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/chat",server_address="localhost",server_port="8096"} 138
+# HELP http_client_request_started_count_total 
+# TYPE http_client_request_started_count_total counter
+http_client_request_started_count_total{clientname="/",http_request_method="POST",http_response_status_code="200",http_route="/",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/routed",server_address="localhost",server_port="8096"} 92
+http_client_request_started_count_total{clientname="/:file",http_request_method="GET",http_response_status_code="200",http_route="/:file",krakend_endpoint_method="GET",krakend_endpoint_route="/files/:file",server_address="localhost",server_port="8280"} 46
+http_client_request_started_count_total{clientname="/__debug/admin",http_request_method="GET",http_response_status_code="200",http_route="/__debug/admin",krakend_endpoint_method="GET",krakend_endpoint_route="/admin",server_address="localhost",server_port="8280"} 46
+http_client_request_started_count_total{clientname="/__debug/basic",http_request_method="GET",http_response_status_code="200",http_route="/__debug/basic",krakend_endpoint_method="GET",krakend_endpoint_route="/basic",server_address="localhost",server_port="8280"} 46
+http_client_request_started_count_total{clientname="/__debug/cc",http_request_method="GET",http_response_status_code="0",http_route="/__debug/cc",krakend_endpoint_method="GET",krakend_endpoint_route="/backend-auth",server_address="localhost",server_port="8280"} 46
+http_client_request_started_count_total{clientname="/__debug/fallback",http_request_method="GET",http_response_status_code="200",http_route="/__debug/fallback",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional",server_address="localhost",server_port="8280"} 46
+http_client_request_started_count_total{clientname="/__debug/graphql",http_request_method="POST",http_response_status_code="200",http_route="/__debug/graphql",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters",server_address="localhost",server_port="8280"} 46
+http_client_request_started_count_total{clientname="/__debug/ntlm",http_request_method="GET",http_response_status_code="200",http_route="/__debug/ntlm",krakend_endpoint_method="GET",krakend_endpoint_route="/backend-auth",server_address="localhost",server_port="8280"} 46
+http_client_request_started_count_total{clientname="/__debug/primary",http_request_method="GET",http_response_status_code="200",http_route="/__debug/primary",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow",server_address="localhost",server_port="8280"} 46
+http_client_request_started_count_total{clientname="/__debug/secure/:id",http_request_method="GET",http_response_status_code="200",http_route="/__debug/secure/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/secure/:id",server_address="localhost",server_port="8280"} 46
+http_client_request_started_count_total{clientname="/__debug/shadow",http_request_method="GET",http_response_status_code="200",http_route="/__debug/shadow",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow",server_address="localhost",server_port="8280"} 46
+http_client_request_started_count_total{clientname="/__debug/soap",http_request_method="POST",http_response_status_code="200",http_route="/__debug/soap",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters",server_address="localhost",server_port="8280"} 46
+http_client_request_started_count_total{clientname="/__debug/step1/:id",http_request_method="GET",http_response_status_code="200",http_route="/__debug/step1/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/workflow/:id",server_address="localhost",server_port="8280"} 46
+http_client_request_started_count_total{clientname="/__debug/token",http_request_method="POST",http_response_status_code="200",http_route="/__debug/token",krakend_endpoint_method="POST",krakend_endpoint_route="/token",server_address="localhost",server_port="8280"} 46
+http_client_request_started_count_total{clientname="/__debug/variant-a",http_request_method="GET",http_response_status_code="200",http_route="/__debug/variant-a",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional",server_address="localhost",server_port="8280"} 46
+http_client_request_started_count_total{clientname="/__debug/wf-inner/:id",http_request_method="GET",http_response_status_code="200",http_route="/__debug/wf-inner/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/wf/:id",server_address="localhost",server_port="8280"} 46
+http_client_request_started_count_total{clientname="/__echo/a",http_request_method="POST",http_response_status_code="200",http_route="/__echo/a",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate",server_address="localhost",server_port="8280"} 46
+http_client_request_started_count_total{clientname="/__echo/b",http_request_method="POST",http_response_status_code="200",http_route="/__echo/b",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate",server_address="localhost",server_port="8280"} 46
+http_client_request_started_count_total{clientname="/fail",http_request_method="GET",http_response_status_code="503",http_route="/fail",krakend_endpoint_method="GET",krakend_endpoint_route="/breaker",server_address="localhost",server_port="8096"} 25
+http_client_request_started_count_total{clientname="/v1/responses",http_request_method="POST",http_response_status_code="200",http_route="/v1/responses",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/chat",server_address="localhost",server_port="8096"} 138
+# HELP http_client_request_tls_duration_seconds Time spent on TLS negotiation and connection
+# TYPE http_client_request_tls_duration_seconds histogram
+http_client_request_tls_duration_seconds_sum{clientname="/",http_request_method="POST",http_response_status_code="200",http_route="/",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/routed",server_address="localhost",server_port="8096"} 0
+http_client_request_tls_duration_seconds_count{clientname="/",http_request_method="POST",http_response_status_code="200",http_route="/",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/routed",server_address="localhost",server_port="8096"} 92
+http_client_request_tls_duration_seconds_sum{clientname="/:file",http_request_method="GET",http_response_status_code="200",http_route="/:file",krakend_endpoint_method="GET",krakend_endpoint_route="/files/:file",server_address="localhost",server_port="8280"} 0
+http_client_request_tls_duration_seconds_count{clientname="/:file",http_request_method="GET",http_response_status_code="200",http_route="/:file",krakend_endpoint_method="GET",krakend_endpoint_route="/files/:file",server_address="localhost",server_port="8280"} 46
+http_client_request_tls_duration_seconds_sum{clientname="/__debug/admin",http_request_method="GET",http_response_status_code="200",http_route="/__debug/admin",krakend_endpoint_method="GET",krakend_endpoint_route="/admin",server_address="localhost",server_port="8280"} 0
+http_client_request_tls_duration_seconds_count{clientname="/__debug/admin",http_request_method="GET",http_response_status_code="200",http_route="/__debug/admin",krakend_endpoint_method="GET",krakend_endpoint_route="/admin",server_address="localhost",server_port="8280"} 46
+http_client_request_tls_duration_seconds_sum{clientname="/__debug/basic",http_request_method="GET",http_response_status_code="200",http_route="/__debug/basic",krakend_endpoint_method="GET",krakend_endpoint_route="/basic",server_address="localhost",server_port="8280"} 0
+http_client_request_tls_duration_seconds_count{clientname="/__debug/basic",http_request_method="GET",http_response_status_code="200",http_route="/__debug/basic",krakend_endpoint_method="GET",krakend_endpoint_route="/basic",server_address="localhost",server_port="8280"} 46
+http_client_request_tls_duration_seconds_sum{clientname="/__debug/cc",http_request_method="GET",http_response_status_code="0",http_route="/__debug/cc",krakend_endpoint_method="GET",krakend_endpoint_route="/backend-auth",server_address="localhost",server_port="8280"} 0
+http_client_request_tls_duration_seconds_count{clientname="/__debug/cc",http_request_method="GET",http_response_status_code="0",http_route="/__debug/cc",krakend_endpoint_method="GET",krakend_endpoint_route="/backend-auth",server_address="localhost",server_port="8280"} 46
+http_client_request_tls_duration_seconds_sum{clientname="/__debug/fallback",http_request_method="GET",http_response_status_code="200",http_route="/__debug/fallback",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional",server_address="localhost",server_port="8280"} 0
+http_client_request_tls_duration_seconds_count{clientname="/__debug/fallback",http_request_method="GET",http_response_status_code="200",http_route="/__debug/fallback",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional",server_address="localhost",server_port="8280"} 46
+http_client_request_tls_duration_seconds_sum{clientname="/__debug/graphql",http_request_method="POST",http_response_status_code="200",http_route="/__debug/graphql",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters",server_address="localhost",server_port="8280"} 0
+http_client_request_tls_duration_seconds_count{clientname="/__debug/graphql",http_request_method="POST",http_response_status_code="200",http_route="/__debug/graphql",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters",server_address="localhost",server_port="8280"} 46
+http_client_request_tls_duration_seconds_sum{clientname="/__debug/ntlm",http_request_method="GET",http_response_status_code="200",http_route="/__debug/ntlm",krakend_endpoint_method="GET",krakend_endpoint_route="/backend-auth",server_address="localhost",server_port="8280"} 0
+http_client_request_tls_duration_seconds_count{clientname="/__debug/ntlm",http_request_method="GET",http_response_status_code="200",http_route="/__debug/ntlm",krakend_endpoint_method="GET",krakend_endpoint_route="/backend-auth",server_address="localhost",server_port="8280"} 46
+http_client_request_tls_duration_seconds_sum{clientname="/__debug/primary",http_request_method="GET",http_response_status_code="200",http_route="/__debug/primary",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow",server_address="localhost",server_port="8280"} 0
+http_client_request_tls_duration_seconds_count{clientname="/__debug/primary",http_request_method="GET",http_response_status_code="200",http_route="/__debug/primary",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow",server_address="localhost",server_port="8280"} 46
+http_client_request_tls_duration_seconds_sum{clientname="/__debug/secure/:id",http_request_method="GET",http_response_status_code="200",http_route="/__debug/secure/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/secure/:id",server_address="localhost",server_port="8280"} 0
+http_client_request_tls_duration_seconds_count{clientname="/__debug/secure/:id",http_request_method="GET",http_response_status_code="200",http_route="/__debug/secure/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/secure/:id",server_address="localhost",server_port="8280"} 46
+http_client_request_tls_duration_seconds_sum{clientname="/__debug/shadow",http_request_method="GET",http_response_status_code="200",http_route="/__debug/shadow",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow",server_address="localhost",server_port="8280"} 0
+http_client_request_tls_duration_seconds_count{clientname="/__debug/shadow",http_request_method="GET",http_response_status_code="200",http_route="/__debug/shadow",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow",server_address="localhost",server_port="8280"} 46
+http_client_request_tls_duration_seconds_sum{clientname="/__debug/soap",http_request_method="POST",http_response_status_code="200",http_route="/__debug/soap",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters",server_address="localhost",server_port="8280"} 0
+http_client_request_tls_duration_seconds_count{clientname="/__debug/soap",http_request_method="POST",http_response_status_code="200",http_route="/__debug/soap",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters",server_address="localhost",server_port="8280"} 46
+http_client_request_tls_duration_seconds_sum{clientname="/__debug/step1/:id",http_request_method="GET",http_response_status_code="200",http_route="/__debug/step1/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/workflow/:id",server_address="localhost",server_port="8280"} 0
+http_client_request_tls_duration_seconds_count{clientname="/__debug/step1/:id",http_request_method="GET",http_response_status_code="200",http_route="/__debug/step1/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/workflow/:id",server_address="localhost",server_port="8280"} 46
+http_client_request_tls_duration_seconds_sum{clientname="/__debug/token",http_request_method="POST",http_response_status_code="200",http_route="/__debug/token",krakend_endpoint_method="POST",krakend_endpoint_route="/token",server_address="localhost",server_port="8280"} 0
+http_client_request_tls_duration_seconds_count{clientname="/__debug/token",http_request_method="POST",http_response_status_code="200",http_route="/__debug/token",krakend_endpoint_method="POST",krakend_endpoint_route="/token",server_address="localhost",server_port="8280"} 46
+http_client_request_tls_duration_seconds_sum{clientname="/__debug/variant-a",http_request_method="GET",http_response_status_code="200",http_route="/__debug/variant-a",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional",server_address="localhost",server_port="8280"} 0
+http_client_request_tls_duration_seconds_count{clientname="/__debug/variant-a",http_request_method="GET",http_response_status_code="200",http_route="/__debug/variant-a",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional",server_address="localhost",server_port="8280"} 46
+http_client_request_tls_duration_seconds_sum{clientname="/__debug/wf-inner/:id",http_request_method="GET",http_response_status_code="200",http_route="/__debug/wf-inner/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/wf/:id",server_address="localhost",server_port="8280"} 0
+http_client_request_tls_duration_seconds_count{clientname="/__debug/wf-inner/:id",http_request_method="GET",http_response_status_code="200",http_route="/__debug/wf-inner/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/wf/:id",server_address="localhost",server_port="8280"} 46
+http_client_request_tls_duration_seconds_sum{clientname="/__echo/a",http_request_method="POST",http_response_status_code="200",http_route="/__echo/a",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate",server_address="localhost",server_port="8280"} 0
+http_client_request_tls_duration_seconds_count{clientname="/__echo/a",http_request_method="POST",http_response_status_code="200",http_route="/__echo/a",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate",server_address="localhost",server_port="8280"} 46
+http_client_request_tls_duration_seconds_sum{clientname="/__echo/b",http_request_method="POST",http_response_status_code="200",http_route="/__echo/b",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate",server_address="localhost",server_port="8280"} 0
+http_client_request_tls_duration_seconds_count{clientname="/__echo/b",http_request_method="POST",http_response_status_code="200",http_route="/__echo/b",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate",server_address="localhost",server_port="8280"} 46
+http_client_request_tls_duration_seconds_sum{clientname="/fail",http_request_method="GET",http_response_status_code="503",http_route="/fail",krakend_endpoint_method="GET",krakend_endpoint_route="/breaker",server_address="localhost",server_port="8096"} 0
+http_client_request_tls_duration_seconds_count{clientname="/fail",http_request_method="GET",http_response_status_code="503",http_route="/fail",krakend_endpoint_method="GET",krakend_endpoint_route="/breaker",server_address="localhost",server_port="8096"} 25
+http_client_request_tls_duration_seconds_sum{clientname="/v1/responses",http_request_method="POST",http_response_status_code="200",http_route="/v1/responses",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/chat",server_address="localhost",server_port="8096"} 0
+http_client_request_tls_duration_seconds_count{clientname="/v1/responses",http_request_method="POST",http_response_status_code="200",http_route="/v1/responses",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/chat",server_address="localhost",server_port="8096"} 138
+# HELP http_client_response_body_size_bytes Size of HTTP client response bodies.
+# TYPE http_client_response_body_size_bytes histogram
+http_client_response_body_size_bytes_sum{clientname="/",http_request_method="POST",http_response_status_code="200",http_route="/",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/routed",server_address="localhost",server_port="8096"} 31372
+http_client_response_body_size_bytes_count{clientname="/",http_request_method="POST",http_response_status_code="200",http_route="/",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/routed",server_address="localhost",server_port="8096"} 92
+http_client_response_body_size_bytes_sum{clientname="/fail",http_request_method="GET",http_response_status_code="503",http_route="/fail",krakend_endpoint_method="GET",krakend_endpoint_route="/breaker",server_address="localhost",server_port="8096"} 625
+http_client_response_body_size_bytes_count{clientname="/fail",http_request_method="GET",http_response_status_code="503",http_route="/fail",krakend_endpoint_method="GET",krakend_endpoint_route="/breaker",server_address="localhost",server_port="8096"} 25
+http_client_response_body_size_bytes_sum{clientname="/v1/responses",http_request_method="POST",http_response_status_code="200",http_route="/v1/responses",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/chat",server_address="localhost",server_port="8096"} 47058
+http_client_response_body_size_bytes_count{clientname="/v1/responses",http_request_method="POST",http_response_status_code="200",http_route="/v1/responses",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/chat",server_address="localhost",server_port="8096"} 138
+# HELP http_client_response_no_content_length_bytes_total Client received responses that do not have 'Content-Length' value set
+# TYPE http_client_response_no_content_length_bytes_total counter
+http_client_response_no_content_length_bytes_total{clientname="/:file",http_request_method="GET",http_response_status_code="200",http_route="/:file",krakend_endpoint_method="GET",krakend_endpoint_route="/files/:file",server_address="localhost",server_port="8280"} 46
+http_client_response_no_content_length_bytes_total{clientname="/__debug/admin",http_request_method="GET",http_response_status_code="200",http_route="/__debug/admin",krakend_endpoint_method="GET",krakend_endpoint_route="/admin",server_address="localhost",server_port="8280"} 46
+http_client_response_no_content_length_bytes_total{clientname="/__debug/basic",http_request_method="GET",http_response_status_code="200",http_route="/__debug/basic",krakend_endpoint_method="GET",krakend_endpoint_route="/basic",server_address="localhost",server_port="8280"} 46
+http_client_response_no_content_length_bytes_total{clientname="/__debug/fallback",http_request_method="GET",http_response_status_code="200",http_route="/__debug/fallback",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional",server_address="localhost",server_port="8280"} 46
+http_client_response_no_content_length_bytes_total{clientname="/__debug/graphql",http_request_method="POST",http_response_status_code="200",http_route="/__debug/graphql",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters",server_address="localhost",server_port="8280"} 46
+http_client_response_no_content_length_bytes_total{clientname="/__debug/ntlm",http_request_method="GET",http_response_status_code="200",http_route="/__debug/ntlm",krakend_endpoint_method="GET",krakend_endpoint_route="/backend-auth",server_address="localhost",server_port="8280"} 46
+http_client_response_no_content_length_bytes_total{clientname="/__debug/primary",http_request_method="GET",http_response_status_code="200",http_route="/__debug/primary",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow",server_address="localhost",server_port="8280"} 46
+http_client_response_no_content_length_bytes_total{clientname="/__debug/secure/:id",http_request_method="GET",http_response_status_code="200",http_route="/__debug/secure/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/secure/:id",server_address="localhost",server_port="8280"} 46
+http_client_response_no_content_length_bytes_total{clientname="/__debug/shadow",http_request_method="GET",http_response_status_code="200",http_route="/__debug/shadow",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow",server_address="localhost",server_port="8280"} 46
+http_client_response_no_content_length_bytes_total{clientname="/__debug/soap",http_request_method="POST",http_response_status_code="200",http_route="/__debug/soap",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters",server_address="localhost",server_port="8280"} 46
+http_client_response_no_content_length_bytes_total{clientname="/__debug/step1/:id",http_request_method="GET",http_response_status_code="200",http_route="/__debug/step1/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/workflow/:id",server_address="localhost",server_port="8280"} 46
+http_client_response_no_content_length_bytes_total{clientname="/__debug/token",http_request_method="POST",http_response_status_code="200",http_route="/__debug/token",krakend_endpoint_method="POST",krakend_endpoint_route="/token",server_address="localhost",server_port="8280"} 46
+http_client_response_no_content_length_bytes_total{clientname="/__debug/variant-a",http_request_method="GET",http_response_status_code="200",http_route="/__debug/variant-a",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional",server_address="localhost",server_port="8280"} 46
+http_client_response_no_content_length_bytes_total{clientname="/__debug/wf-inner/:id",http_request_method="GET",http_response_status_code="200",http_route="/__debug/wf-inner/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/wf/:id",server_address="localhost",server_port="8280"} 46
+http_client_response_no_content_length_bytes_total{clientname="/__echo/a",http_request_method="POST",http_response_status_code="200",http_route="/__echo/a",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate",server_address="localhost",server_port="8280"} 46
+http_client_response_no_content_length_bytes_total{clientname="/__echo/b",http_request_method="POST",http_response_status_code="200",http_route="/__echo/b",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate",server_address="localhost",server_port="8280"} 46
+# HELP http_client_response_read_size_b_total 
+# TYPE http_client_response_read_size_b_total counter
+http_client_response_read_size_b_total{http_request_method="GET",http_route="/:file",krakend_endpoint_method="GET",krakend_endpoint_route="/files/:file"} 1334
+http_client_response_read_size_b_total{http_request_method="GET",http_route="/__debug/admin",krakend_endpoint_method="GET",krakend_endpoint_route="/admin"} 828
+http_client_response_read_size_b_total{http_request_method="GET",http_route="/__debug/basic",krakend_endpoint_method="GET",krakend_endpoint_route="/basic"} 828
+http_client_response_read_size_b_total{http_request_method="GET",http_route="/__debug/fallback",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional"} 828
+http_client_response_read_size_b_total{http_request_method="GET",http_route="/__debug/ntlm",krakend_endpoint_method="GET",krakend_endpoint_route="/backend-auth"} 828
+http_client_response_read_size_b_total{http_request_method="GET",http_route="/__debug/primary",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow"} 828
+http_client_response_read_size_b_total{http_request_method="GET",http_route="/__debug/secure/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/secure/:id"} 828
+http_client_response_read_size_b_total{http_request_method="GET",http_route="/__debug/shadow",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow"} 828
+http_client_response_read_size_b_total{http_request_method="GET",http_route="/__debug/step1/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/workflow/:id"} 828
+http_client_response_read_size_b_total{http_request_method="GET",http_route="/__debug/variant-a",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional"} 828
+http_client_response_read_size_b_total{http_request_method="GET",http_route="/__debug/wf-inner/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/wf/:id"} 828
+http_client_response_read_size_b_total{http_request_method="POST",http_route="/",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/routed"} 31372
+http_client_response_read_size_b_total{http_request_method="POST",http_route="/__debug/graphql",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters"} 828
+http_client_response_read_size_b_total{http_request_method="POST",http_route="/__debug/soap",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters"} 0
+http_client_response_read_size_b_total{http_request_method="POST",http_route="/__debug/token",krakend_endpoint_method="POST",krakend_endpoint_route="/token"} 828
+http_client_response_read_size_b_total{http_request_method="POST",http_route="/__echo/a",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate"} 23322
+http_client_response_read_size_b_total{http_request_method="POST",http_route="/__echo/b",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate"} 24564
+http_client_response_read_size_b_total{http_request_method="POST",http_route="/v1/responses",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/chat"} 47058
+# HELP http_client_response_read_size_hist_b 
+# TYPE http_client_response_read_size_hist_b histogram
+http_client_response_read_size_hist_b_sum{http_request_method="GET",http_route="/:file",krakend_endpoint_method="GET",krakend_endpoint_route="/files/:file"} 1334
+http_client_response_read_size_hist_b_count{http_request_method="GET",http_route="/:file",krakend_endpoint_method="GET",krakend_endpoint_route="/files/:file"} 46
+http_client_response_read_size_hist_b_sum{http_request_method="GET",http_route="/__debug/admin",krakend_endpoint_method="GET",krakend_endpoint_route="/admin"} 828
+http_client_response_read_size_hist_b_count{http_request_method="GET",http_route="/__debug/admin",krakend_endpoint_method="GET",krakend_endpoint_route="/admin"} 46
+http_client_response_read_size_hist_b_sum{http_request_method="GET",http_route="/__debug/basic",krakend_endpoint_method="GET",krakend_endpoint_route="/basic"} 828
+http_client_response_read_size_hist_b_count{http_request_method="GET",http_route="/__debug/basic",krakend_endpoint_method="GET",krakend_endpoint_route="/basic"} 46
+http_client_response_read_size_hist_b_sum{http_request_method="GET",http_route="/__debug/fallback",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional"} 828
+http_client_response_read_size_hist_b_count{http_request_method="GET",http_route="/__debug/fallback",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional"} 46
+http_client_response_read_size_hist_b_sum{http_request_method="GET",http_route="/__debug/ntlm",krakend_endpoint_method="GET",krakend_endpoint_route="/backend-auth"} 828
+http_client_response_read_size_hist_b_count{http_request_method="GET",http_route="/__debug/ntlm",krakend_endpoint_method="GET",krakend_endpoint_route="/backend-auth"} 46
+http_client_response_read_size_hist_b_sum{http_request_method="GET",http_route="/__debug/primary",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow"} 828
+http_client_response_read_size_hist_b_count{http_request_method="GET",http_route="/__debug/primary",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow"} 46
+http_client_response_read_size_hist_b_sum{http_request_method="GET",http_route="/__debug/secure/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/secure/:id"} 828
+http_client_response_read_size_hist_b_count{http_request_method="GET",http_route="/__debug/secure/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/secure/:id"} 46
+http_client_response_read_size_hist_b_sum{http_request_method="GET",http_route="/__debug/shadow",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow"} 828
+http_client_response_read_size_hist_b_count{http_request_method="GET",http_route="/__debug/shadow",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow"} 46
+http_client_response_read_size_hist_b_sum{http_request_method="GET",http_route="/__debug/step1/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/workflow/:id"} 828
+http_client_response_read_size_hist_b_count{http_request_method="GET",http_route="/__debug/step1/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/workflow/:id"} 46
+http_client_response_read_size_hist_b_sum{http_request_method="GET",http_route="/__debug/variant-a",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional"} 828
+http_client_response_read_size_hist_b_count{http_request_method="GET",http_route="/__debug/variant-a",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional"} 46
+http_client_response_read_size_hist_b_sum{http_request_method="GET",http_route="/__debug/wf-inner/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/wf/:id"} 828
+http_client_response_read_size_hist_b_count{http_request_method="GET",http_route="/__debug/wf-inner/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/wf/:id"} 46
+http_client_response_read_size_hist_b_sum{http_request_method="POST",http_route="/",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/routed"} 31372
+http_client_response_read_size_hist_b_count{http_request_method="POST",http_route="/",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/routed"} 92
+http_client_response_read_size_hist_b_sum{http_request_method="POST",http_route="/__debug/graphql",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters"} 828
+http_client_response_read_size_hist_b_count{http_request_method="POST",http_route="/__debug/graphql",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters"} 46
+http_client_response_read_size_hist_b_sum{http_request_method="POST",http_route="/__debug/soap",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters"} 0
+http_client_response_read_size_hist_b_count{http_request_method="POST",http_route="/__debug/soap",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters"} 46
+http_client_response_read_size_hist_b_sum{http_request_method="POST",http_route="/__debug/token",krakend_endpoint_method="POST",krakend_endpoint_route="/token"} 828
+http_client_response_read_size_hist_b_count{http_request_method="POST",http_route="/__debug/token",krakend_endpoint_method="POST",krakend_endpoint_route="/token"} 46
+http_client_response_read_size_hist_b_sum{http_request_method="POST",http_route="/__echo/a",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate"} 23322
+http_client_response_read_size_hist_b_count{http_request_method="POST",http_route="/__echo/a",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate"} 46
+http_client_response_read_size_hist_b_sum{http_request_method="POST",http_route="/__echo/b",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate"} 24564
+http_client_response_read_size_hist_b_count{http_request_method="POST",http_route="/__echo/b",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate"} 46
+http_client_response_read_size_hist_b_sum{http_request_method="POST",http_route="/v1/responses",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/chat"} 47058
+http_client_response_read_size_hist_b_count{http_request_method="POST",http_route="/v1/responses",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/chat"} 138
+# HELP http_client_response_read_time_hist_seconds 
+# TYPE http_client_response_read_time_hist_seconds histogram
+http_client_response_read_time_hist_seconds_sum{http_request_method="GET",http_route="/:file",krakend_endpoint_method="GET",krakend_endpoint_route="/files/:file"} 0.001666079
+http_client_response_read_time_hist_seconds_count{http_request_method="GET",http_route="/:file",krakend_endpoint_method="GET",krakend_endpoint_route="/files/:file"} 46
+http_client_response_read_time_hist_seconds_sum{http_request_method="GET",http_route="/__debug/admin",krakend_endpoint_method="GET",krakend_endpoint_route="/admin"} 0.001363002
+http_client_response_read_time_hist_seconds_count{http_request_method="GET",http_route="/__debug/admin",krakend_endpoint_method="GET",krakend_endpoint_route="/admin"} 46
+http_client_response_read_time_hist_seconds_sum{http_request_method="GET",http_route="/__debug/basic",krakend_endpoint_method="GET",krakend_endpoint_route="/basic"} 0.0007072080000000001
+http_client_response_read_time_hist_seconds_count{http_request_method="GET",http_route="/__debug/basic",krakend_endpoint_method="GET",krakend_endpoint_route="/basic"} 46
+http_client_response_read_time_hist_seconds_sum{http_request_method="GET",http_route="/__debug/fallback",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional"} 0.000598828
+http_client_response_read_time_hist_seconds_count{http_request_method="GET",http_route="/__debug/fallback",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional"} 46
+http_client_response_read_time_hist_seconds_sum{http_request_method="GET",http_route="/__debug/ntlm",krakend_endpoint_method="GET",krakend_endpoint_route="/backend-auth"} 0.0006652069999999999
+http_client_response_read_time_hist_seconds_count{http_request_method="GET",http_route="/__debug/ntlm",krakend_endpoint_method="GET",krakend_endpoint_route="/backend-auth"} 46
+http_client_response_read_time_hist_seconds_sum{http_request_method="GET",http_route="/__debug/primary",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow"} 0.0006012090000000001
+http_client_response_read_time_hist_seconds_count{http_request_method="GET",http_route="/__debug/primary",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow"} 46
+http_client_response_read_time_hist_seconds_sum{http_request_method="GET",http_route="/__debug/secure/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/secure/:id"} 0.00122688
+http_client_response_read_time_hist_seconds_count{http_request_method="GET",http_route="/__debug/secure/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/secure/:id"} 46
+http_client_response_read_time_hist_seconds_sum{http_request_method="GET",http_route="/__debug/shadow",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow"} 0.0007687130000000001
+http_client_response_read_time_hist_seconds_count{http_request_method="GET",http_route="/__debug/shadow",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow"} 46
+http_client_response_read_time_hist_seconds_sum{http_request_method="GET",http_route="/__debug/step1/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/workflow/:id"} 0.0007424980000000003
+http_client_response_read_time_hist_seconds_count{http_request_method="GET",http_route="/__debug/step1/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/workflow/:id"} 46
+http_client_response_read_time_hist_seconds_sum{http_request_method="GET",http_route="/__debug/variant-a",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional"} 0.0006730039999999999
+http_client_response_read_time_hist_seconds_count{http_request_method="GET",http_route="/__debug/variant-a",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional"} 46
+http_client_response_read_time_hist_seconds_sum{http_request_method="GET",http_route="/__debug/wf-inner/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/wf/:id"} 0.00076725
+http_client_response_read_time_hist_seconds_count{http_request_method="GET",http_route="/__debug/wf-inner/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/wf/:id"} 46
+http_client_response_read_time_hist_seconds_sum{http_request_method="POST",http_route="/",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/routed"} 0.011225374
+http_client_response_read_time_hist_seconds_count{http_request_method="POST",http_route="/",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/routed"} 92
+http_client_response_read_time_hist_seconds_sum{http_request_method="POST",http_route="/__debug/graphql",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters"} 0.0008973329999999999
+http_client_response_read_time_hist_seconds_count{http_request_method="POST",http_route="/__debug/graphql",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters"} 46
+http_client_response_read_time_hist_seconds_sum{http_request_method="POST",http_route="/__debug/soap",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters"} 4.2427511369531995e+11
+http_client_response_read_time_hist_seconds_count{http_request_method="POST",http_route="/__debug/soap",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters"} 46
+http_client_response_read_time_hist_seconds_sum{http_request_method="POST",http_route="/__debug/token",krakend_endpoint_method="POST",krakend_endpoint_route="/token"} 0.00190592
+http_client_response_read_time_hist_seconds_count{http_request_method="POST",http_route="/__debug/token",krakend_endpoint_method="POST",krakend_endpoint_route="/token"} 46
+http_client_response_read_time_hist_seconds_sum{http_request_method="POST",http_route="/__echo/a",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate"} 0.0012994549999999997
+http_client_response_read_time_hist_seconds_count{http_request_method="POST",http_route="/__echo/a",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate"} 46
+http_client_response_read_time_hist_seconds_sum{http_request_method="POST",http_route="/__echo/b",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate"} 0.0018535859999999997
+http_client_response_read_time_hist_seconds_count{http_request_method="POST",http_route="/__echo/b",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate"} 46
+http_client_response_read_time_hist_seconds_sum{http_request_method="POST",http_route="/v1/responses",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/chat"} 0.017166581
+http_client_response_read_time_hist_seconds_count{http_request_method="POST",http_route="/v1/responses",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/chat"} 138
+# HELP http_client_response_read_time_seconds_total 
+# TYPE http_client_response_read_time_seconds_total counter
+http_client_response_read_time_seconds_total{http_request_method="GET",http_route="/:file",krakend_endpoint_method="GET",krakend_endpoint_route="/files/:file"} 0.001666079
+http_client_response_read_time_seconds_total{http_request_method="GET",http_route="/__debug/admin",krakend_endpoint_method="GET",krakend_endpoint_route="/admin"} 0.001363002
+http_client_response_read_time_seconds_total{http_request_method="GET",http_route="/__debug/basic",krakend_endpoint_method="GET",krakend_endpoint_route="/basic"} 0.0007072080000000001
+http_client_response_read_time_seconds_total{http_request_method="GET",http_route="/__debug/fallback",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional"} 0.000598828
+http_client_response_read_time_seconds_total{http_request_method="GET",http_route="/__debug/ntlm",krakend_endpoint_method="GET",krakend_endpoint_route="/backend-auth"} 0.0006652069999999999
+http_client_response_read_time_seconds_total{http_request_method="GET",http_route="/__debug/primary",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow"} 0.0006012090000000001
+http_client_response_read_time_seconds_total{http_request_method="GET",http_route="/__debug/secure/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/secure/:id"} 0.00122688
+http_client_response_read_time_seconds_total{http_request_method="GET",http_route="/__debug/shadow",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow"} 0.0007687130000000001
+http_client_response_read_time_seconds_total{http_request_method="GET",http_route="/__debug/step1/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/workflow/:id"} 0.0007424980000000003
+http_client_response_read_time_seconds_total{http_request_method="GET",http_route="/__debug/variant-a",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional"} 0.0006730039999999999
+http_client_response_read_time_seconds_total{http_request_method="GET",http_route="/__debug/wf-inner/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/wf/:id"} 0.00076725
+http_client_response_read_time_seconds_total{http_request_method="POST",http_route="/",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/routed"} 0.011225374
+http_client_response_read_time_seconds_total{http_request_method="POST",http_route="/__debug/graphql",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters"} 0.0008973329999999999
+http_client_response_read_time_seconds_total{http_request_method="POST",http_route="/__debug/soap",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters"} 4.2427511369531995e+11
+http_client_response_read_time_seconds_total{http_request_method="POST",http_route="/__debug/token",krakend_endpoint_method="POST",krakend_endpoint_route="/token"} 0.00190592
+http_client_response_read_time_seconds_total{http_request_method="POST",http_route="/__echo/a",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate"} 0.0012994549999999997
+http_client_response_read_time_seconds_total{http_request_method="POST",http_route="/__echo/b",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate"} 0.0018535859999999997
+http_client_response_read_time_seconds_total{http_request_method="POST",http_route="/v1/responses",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/chat"} 0.017166581
+# HELP http_server_request_duration_seconds Duration of HTTP server requests.
+# TYPE http_server_request_duration_seconds histogram
+http_server_request_duration_seconds_sum{http_request_method="GET",http_response_status_code="200",http_route="/adapters",url_scheme="http"} 0.08709779499999999
+http_server_request_duration_seconds_count{http_request_method="GET",http_response_status_code="200",http_route="/adapters",url_scheme="http"} 46
+http_server_request_duration_seconds_sum{http_request_method="GET",http_response_status_code="200",http_route="/admin",url_scheme="http"} 0.074905205
+http_server_request_duration_seconds_count{http_request_method="GET",http_response_status_code="200",http_route="/admin",url_scheme="http"} 46
+http_server_request_duration_seconds_sum{http_request_method="GET",http_response_status_code="200",http_route="/backend-auth",url_scheme="http"} 0.10357908600000001
+http_server_request_duration_seconds_count{http_request_method="GET",http_response_status_code="200",http_route="/backend-auth",url_scheme="http"} 46
+http_server_request_duration_seconds_sum{http_request_method="GET",http_response_status_code="200",http_route="/basic",url_scheme="http"} 0.17865412399999997
+http_server_request_duration_seconds_count{http_request_method="GET",http_response_status_code="200",http_route="/basic",url_scheme="http"} 46
+http_server_request_duration_seconds_sum{http_request_method="GET",http_response_status_code="200",http_route="/conditional",url_scheme="http"} 0.11873770300000001
+http_server_request_duration_seconds_count{http_request_method="GET",http_response_status_code="200",http_route="/conditional",url_scheme="http"} 92
+http_server_request_duration_seconds_sum{http_request_method="GET",http_response_status_code="200",http_route="/files/:file",url_scheme="http"} 0.04275695699999999
+http_server_request_duration_seconds_count{http_request_method="GET",http_response_status_code="200",http_route="/files/:file",url_scheme="http"} 46
+http_server_request_duration_seconds_sum{http_request_method="GET",http_response_status_code="200",http_route="/kafka/consume",url_scheme="http"} 0.029194954999999995
+http_server_request_duration_seconds_count{http_request_method="GET",http_response_status_code="200",http_route="/kafka/consume",url_scheme="http"} 46
+http_server_request_duration_seconds_sum{http_request_method="GET",http_response_status_code="200",http_route="/pubsub/consume",url_scheme="http"} 0.024682082999999997
+http_server_request_duration_seconds_count{http_request_method="GET",http_response_status_code="200",http_route="/pubsub/consume",url_scheme="http"} 46
+http_server_request_duration_seconds_sum{http_request_method="GET",http_response_status_code="200",http_route="/secure/:id",url_scheme="http"} 0.14332462900000004
+http_server_request_duration_seconds_count{http_request_method="GET",http_response_status_code="200",http_route="/secure/:id",url_scheme="http"} 46
+http_server_request_duration_seconds_sum{http_request_method="GET",http_response_status_code="200",http_route="/shadow",url_scheme="http"} 0.054604248999999994
+http_server_request_duration_seconds_count{http_request_method="GET",http_response_status_code="200",http_route="/shadow",url_scheme="http"} 46
+http_server_request_duration_seconds_sum{http_request_method="GET",http_response_status_code="200",http_route="/workflow/:id",url_scheme="http"} 0.09306775099999999
+http_server_request_duration_seconds_count{http_request_method="GET",http_response_status_code="200",http_route="/workflow/:id",url_scheme="http"} 46
+http_server_request_duration_seconds_sum{http_request_method="GET",http_response_status_code="200",http_route="/ws",url_scheme="http"} 66.190210005
+http_server_request_duration_seconds_count{http_request_method="GET",http_response_status_code="200",http_route="/ws",url_scheme="http"} 90
+http_server_request_duration_seconds_sum{http_request_method="GET",http_response_status_code="200",http_route="200 OK",url_scheme="http"} 0.15122397099999987
+http_server_request_duration_seconds_count{http_request_method="GET",http_response_status_code="200",http_route="200 OK",url_scheme="http"} 460
+http_server_request_duration_seconds_sum{http_request_method="GET",http_response_status_code="401",http_route="/secure/:id",url_scheme="http"} 0.032534042
+http_server_request_duration_seconds_count{http_request_method="GET",http_response_status_code="401",http_route="/secure/:id",url_scheme="http"} 46
+http_server_request_duration_seconds_sum{http_request_method="GET",http_response_status_code="403",http_route="/admin",url_scheme="http"} 0.028461828999999994
+http_server_request_duration_seconds_count{http_request_method="GET",http_response_status_code="403",http_route="/admin",url_scheme="http"} 46
+http_server_request_duration_seconds_sum{http_request_method="GET",http_response_status_code="404",http_route="404 Not Found",url_scheme="http"} 0.004412372
+http_server_request_duration_seconds_count{http_request_method="GET",http_response_status_code="404",http_route="404 Not Found",url_scheme="http"} 46
+http_server_request_duration_seconds_sum{http_request_method="GET",http_response_status_code="500",http_route="/amqp/consume",url_scheme="http"} 138.05795779
+http_server_request_duration_seconds_count{http_request_method="GET",http_response_status_code="500",http_route="/amqp/consume",url_scheme="http"} 46
+http_server_request_duration_seconds_sum{http_request_method="GET",http_response_status_code="500",http_route="/breaker",url_scheme="http"} 0.08948737300000001
+http_server_request_duration_seconds_count{http_request_method="GET",http_response_status_code="500",http_route="/breaker",url_scheme="http"} 46
+http_server_request_duration_seconds_sum{http_request_method="POST",http_response_status_code="200",http_route="/aggregate",url_scheme="http"} 0.10676687199999998
+http_server_request_duration_seconds_count{http_request_method="POST",http_response_status_code="200",http_route="/aggregate",url_scheme="http"} 46
+http_server_request_duration_seconds_sum{http_request_method="POST",http_response_status_code="200",http_route="/ai/chat",url_scheme="http"} 0.47026616899999996
+http_server_request_duration_seconds_count{http_request_method="POST",http_response_status_code="200",http_route="/ai/chat",url_scheme="http"} 138
+http_server_request_duration_seconds_sum{http_request_method="POST",http_response_status_code="200",http_route="/ai/routed",url_scheme="http"} 0.22978129499999997
+http_server_request_duration_seconds_count{http_request_method="POST",http_response_status_code="200",http_route="/ai/routed",url_scheme="http"} 92
+http_server_request_duration_seconds_sum{http_request_method="POST",http_response_status_code="200",http_route="/amqp/produce",url_scheme="http"} 0.022088872000000002
+http_server_request_duration_seconds_count{http_request_method="POST",http_response_status_code="200",http_route="/amqp/produce",url_scheme="http"} 46
+http_server_request_duration_seconds_sum{http_request_method="POST",http_response_status_code="200",http_route="/kafka/publish",url_scheme="http"} 0.101179834
+http_server_request_duration_seconds_count{http_request_method="POST",http_response_status_code="200",http_route="/kafka/publish",url_scheme="http"} 46
+http_server_request_duration_seconds_sum{http_request_method="POST",http_response_status_code="200",http_route="/pubsub/publish",url_scheme="http"} 0.024163040999999996
+http_server_request_duration_seconds_count{http_request_method="POST",http_response_status_code="200",http_route="/pubsub/publish",url_scheme="http"} 46
+http_server_request_duration_seconds_sum{http_request_method="POST",http_response_status_code="200",http_route="/token",url_scheme="http"} 0.138185086
+http_server_request_duration_seconds_count{http_request_method="POST",http_response_status_code="200",http_route="/token",url_scheme="http"} 46
+http_server_request_duration_seconds_sum{http_request_method="POST",http_response_status_code="200",http_route="200 OK",url_scheme="http"} 0.1402870899999999
+http_server_request_duration_seconds_count{http_request_method="POST",http_response_status_code="200",http_route="200 OK",url_scheme="http"} 322
+http_server_request_duration_seconds_sum{http_request_method="POST",http_response_status_code="403",http_route="/mcp",url_scheme="http"} 0.023289625999999994
+http_server_request_duration_seconds_count{http_request_method="POST",http_response_status_code="403",http_route="/mcp",url_scheme="http"} 46
+http_server_request_duration_seconds_sum{http_request_method="POST",http_response_status_code="500",http_route="/ai/chat",url_scheme="http"} 0.04770441999999999
+http_server_request_duration_seconds_count{http_request_method="POST",http_response_status_code="500",http_route="/ai/chat",url_scheme="http"} 46
+# HELP http_server_response_body_size_bytes Size of HTTP server response bodies.
+# TYPE http_server_response_body_size_bytes histogram
+http_server_response_body_size_bytes_sum{http_request_method="GET",http_response_status_code="200",http_route="/adapters",url_scheme="http"} 1380
+http_server_response_body_size_bytes_count{http_request_method="GET",http_response_status_code="200",http_route="/adapters",url_scheme="http"} 46
+http_server_response_body_size_bytes_sum{http_request_method="GET",http_response_status_code="200",http_route="/admin",url_scheme="http"} 828
+http_server_response_body_size_bytes_count{http_request_method="GET",http_response_status_code="200",http_route="/admin",url_scheme="http"} 46
+http_server_response_body_size_bytes_sum{http_request_method="GET",http_response_status_code="200",http_route="/backend-auth",url_scheme="http"} 1242
+http_server_response_body_size_bytes_count{http_request_method="GET",http_response_status_code="200",http_route="/backend-auth",url_scheme="http"} 46
+http_server_response_body_size_bytes_sum{http_request_method="GET",http_response_status_code="200",http_route="/basic",url_scheme="http"} 828
+http_server_response_body_size_bytes_count{http_request_method="GET",http_response_status_code="200",http_route="/basic",url_scheme="http"} 46
+http_server_response_body_size_bytes_sum{http_request_method="GET",http_response_status_code="200",http_route="/conditional",url_scheme="http"} 1656
+http_server_response_body_size_bytes_count{http_request_method="GET",http_response_status_code="200",http_route="/conditional",url_scheme="http"} 92
+http_server_response_body_size_bytes_sum{http_request_method="GET",http_response_status_code="200",http_route="/files/:file",url_scheme="http"} 1334
+http_server_response_body_size_bytes_count{http_request_method="GET",http_response_status_code="200",http_route="/files/:file",url_scheme="http"} 46
+http_server_response_body_size_bytes_sum{http_request_method="GET",http_response_status_code="200",http_route="/kafka/consume",url_scheme="http"} 552
+http_server_response_body_size_bytes_count{http_request_method="GET",http_response_status_code="200",http_route="/kafka/consume",url_scheme="http"} 46
+http_server_response_body_size_bytes_sum{http_request_method="GET",http_response_status_code="200",http_route="/pubsub/consume",url_scheme="http"} 552
+http_server_response_body_size_bytes_count{http_request_method="GET",http_response_status_code="200",http_route="/pubsub/consume",url_scheme="http"} 46
+http_server_response_body_size_bytes_sum{http_request_method="GET",http_response_status_code="200",http_route="/secure/:id",url_scheme="http"} 828
+http_server_response_body_size_bytes_count{http_request_method="GET",http_response_status_code="200",http_route="/secure/:id",url_scheme="http"} 46
+http_server_response_body_size_bytes_sum{http_request_method="GET",http_response_status_code="200",http_route="/shadow",url_scheme="http"} 828
+http_server_response_body_size_bytes_count{http_request_method="GET",http_response_status_code="200",http_route="/shadow",url_scheme="http"} 46
+http_server_response_body_size_bytes_sum{http_request_method="GET",http_response_status_code="200",http_route="/workflow/:id",url_scheme="http"} 2070
+http_server_response_body_size_bytes_count{http_request_method="GET",http_response_status_code="200",http_route="/workflow/:id",url_scheme="http"} 46
+http_server_response_body_size_bytes_sum{http_request_method="GET",http_response_status_code="200",http_route="/ws",url_scheme="http"} 0
+http_server_response_body_size_bytes_count{http_request_method="GET",http_response_status_code="200",http_route="/ws",url_scheme="http"} 90
+http_server_response_body_size_bytes_sum{http_request_method="GET",http_response_status_code="200",http_route="200 OK",url_scheme="http"} 19320
+http_server_response_body_size_bytes_count{http_request_method="GET",http_response_status_code="200",http_route="200 OK",url_scheme="http"} 460
+http_server_response_body_size_bytes_sum{http_request_method="GET",http_response_status_code="401",http_route="/secure/:id",url_scheme="http"} 0
+http_server_response_body_size_bytes_count{http_request_method="GET",http_response_status_code="401",http_route="/secure/:id",url_scheme="http"} 46
+http_server_response_body_size_bytes_sum{http_request_method="GET",http_response_status_code="403",http_route="/admin",url_scheme="http"} 0
+http_server_response_body_size_bytes_count{http_request_method="GET",http_response_status_code="403",http_route="/admin",url_scheme="http"} 46
+http_server_response_body_size_bytes_sum{http_request_method="GET",http_response_status_code="404",http_route="404 Not Found",url_scheme="http"} 828
+http_server_response_body_size_bytes_count{http_request_method="GET",http_response_status_code="404",http_route="404 Not Found",url_scheme="http"} 46
+http_server_response_body_size_bytes_sum{http_request_method="GET",http_response_status_code="500",http_route="/amqp/consume",url_scheme="http"} 1123
+http_server_response_body_size_bytes_count{http_request_method="GET",http_response_status_code="500",http_route="/amqp/consume",url_scheme="http"} 46
+http_server_response_body_size_bytes_sum{http_request_method="GET",http_response_status_code="500",http_route="/breaker",url_scheme="http"} 1932
+http_server_response_body_size_bytes_count{http_request_method="GET",http_response_status_code="500",http_route="/breaker",url_scheme="http"} 46
+http_server_response_body_size_bytes_sum{http_request_method="POST",http_response_status_code="200",http_route="/aggregate",url_scheme="http"} 48898
+http_server_response_body_size_bytes_count{http_request_method="POST",http_response_status_code="200",http_route="/aggregate",url_scheme="http"} 46
+http_server_response_body_size_bytes_sum{http_request_method="POST",http_response_status_code="200",http_route="/ai/chat",url_scheme="http"} 10350
+http_server_response_body_size_bytes_count{http_request_method="POST",http_response_status_code="200",http_route="/ai/chat",url_scheme="http"} 138
+http_server_response_body_size_bytes_sum{http_request_method="POST",http_response_status_code="200",http_route="/ai/routed",url_scheme="http"} 5934
+http_server_response_body_size_bytes_count{http_request_method="POST",http_response_status_code="200",http_route="/ai/routed",url_scheme="http"} 92
+http_server_response_body_size_bytes_sum{http_request_method="POST",http_response_status_code="200",http_route="/amqp/produce",url_scheme="http"} 184
+http_server_response_body_size_bytes_count{http_request_method="POST",http_response_status_code="200",http_route="/amqp/produce",url_scheme="http"} 46
+http_server_response_body_size_bytes_sum{http_request_method="POST",http_response_status_code="200",http_route="/kafka/publish",url_scheme="http"} 92
+http_server_response_body_size_bytes_count{http_request_method="POST",http_response_status_code="200",http_route="/kafka/publish",url_scheme="http"} 46
+http_server_response_body_size_bytes_sum{http_request_method="POST",http_response_status_code="200",http_route="/pubsub/publish",url_scheme="http"} 184
+http_server_response_body_size_bytes_count{http_request_method="POST",http_response_status_code="200",http_route="/pubsub/publish",url_scheme="http"} 46
+http_server_response_body_size_bytes_sum{http_request_method="POST",http_response_status_code="200",http_route="/token",url_scheme="http"} 8096
+http_server_response_body_size_bytes_count{http_request_method="POST",http_response_status_code="200",http_route="/token",url_scheme="http"} 46
+http_server_response_body_size_bytes_sum{http_request_method="POST",http_response_status_code="200",http_route="200 OK",url_scheme="http"} 42989
+http_server_response_body_size_bytes_count{http_request_method="POST",http_response_status_code="200",http_route="200 OK",url_scheme="http"} 322
+http_server_response_body_size_bytes_sum{http_request_method="POST",http_response_status_code="403",http_route="/mcp",url_scheme="http"} 2714
+http_server_response_body_size_bytes_count{http_request_method="POST",http_response_status_code="403",http_route="/mcp",url_scheme="http"} 46
+http_server_response_body_size_bytes_sum{http_request_method="POST",http_response_status_code="500",http_route="/ai/chat",url_scheme="http"} 920
+http_server_response_body_size_bytes_count{http_request_method="POST",http_response_status_code="500",http_route="/ai/chat",url_scheme="http"} 46
+# HELP krakend_backend_duration 
+# TYPE krakend_backend_duration histogram
+krakend_backend_duration_sum{canceled="false",complete="false",error="true",http_request_method="GET",http_route="/",krakend_endpoint_method="GET",krakend_endpoint_route="/amqp/consume"} 129.01028599499998
+krakend_backend_duration_count{canceled="false",complete="false",error="true",http_request_method="GET",http_route="/",krakend_endpoint_method="GET",krakend_endpoint_route="/amqp/consume"} 43
+krakend_backend_duration_sum{canceled="false",complete="false",error="true",http_request_method="GET",http_route="/__debug/cc",krakend_endpoint_method="GET",krakend_endpoint_route="/backend-auth"} 0.07626341500000001
+krakend_backend_duration_count{canceled="false",complete="false",error="true",http_request_method="GET",http_route="/__debug/cc",krakend_endpoint_method="GET",krakend_endpoint_route="/backend-auth"} 46
+krakend_backend_duration_sum{canceled="false",complete="false",error="true",http_request_method="GET",http_route="/fail",krakend_endpoint_method="GET",krakend_endpoint_route="/breaker"} 0.064561792
+krakend_backend_duration_count{canceled="false",complete="false",error="true",http_request_method="GET",http_route="/fail",krakend_endpoint_method="GET",krakend_endpoint_route="/breaker"} 46
+krakend_backend_duration_sum{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/",krakend_endpoint_method="GET",krakend_endpoint_route="/kafka/consume"} 0.007360377999999999
+krakend_backend_duration_count{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/",krakend_endpoint_method="GET",krakend_endpoint_route="/kafka/consume"} 46
+krakend_backend_duration_sum{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/",krakend_endpoint_method="GET",krakend_endpoint_route="/pubsub/consume"} 0.004792335
+krakend_backend_duration_count{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/",krakend_endpoint_method="GET",krakend_endpoint_route="/pubsub/consume"} 46
+krakend_backend_duration_sum{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/:file",krakend_endpoint_method="GET",krakend_endpoint_route="/files/:file"} 0.012051418999999999
+krakend_backend_duration_count{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/:file",krakend_endpoint_method="GET",krakend_endpoint_route="/files/:file"} 46
+krakend_backend_duration_sum{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/__debug/admin",krakend_endpoint_method="GET",krakend_endpoint_route="/admin"} 0.041611044
+krakend_backend_duration_count{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/__debug/admin",krakend_endpoint_method="GET",krakend_endpoint_route="/admin"} 46
+krakend_backend_duration_sum{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/__debug/basic",krakend_endpoint_method="GET",krakend_endpoint_route="/basic"} 0.023536249999999995
+krakend_backend_duration_count{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/__debug/basic",krakend_endpoint_method="GET",krakend_endpoint_route="/basic"} 46
+krakend_backend_duration_sum{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/__debug/fallback",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional"} 0.024748960000000004
+krakend_backend_duration_count{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/__debug/fallback",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional"} 46
+krakend_backend_duration_sum{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/__debug/ntlm",krakend_endpoint_method="GET",krakend_endpoint_route="/backend-auth"} 0.033470628
+krakend_backend_duration_count{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/__debug/ntlm",krakend_endpoint_method="GET",krakend_endpoint_route="/backend-auth"} 46
+krakend_backend_duration_sum{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/__debug/primary",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow"} 0.029061959999999994
+krakend_backend_duration_count{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/__debug/primary",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow"} 46
+krakend_backend_duration_sum{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/__debug/secure/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/secure/:id"} 0.032152374
+krakend_backend_duration_count{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/__debug/secure/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/secure/:id"} 46
+krakend_backend_duration_sum{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/__debug/shadow",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow"} 0.034297833
+krakend_backend_duration_count{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/__debug/shadow",krakend_endpoint_method="GET",krakend_endpoint_route="/shadow"} 46
+krakend_backend_duration_sum{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/__debug/step1/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/workflow/:id"} 0.025764373000000004
+krakend_backend_duration_count{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/__debug/step1/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/workflow/:id"} 46
+krakend_backend_duration_sum{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/__debug/step2",krakend_endpoint_method="GET",krakend_endpoint_route="/workflow/:id"} 0.035865667
+krakend_backend_duration_count{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/__debug/step2",krakend_endpoint_method="GET",krakend_endpoint_route="/workflow/:id"} 46
+krakend_backend_duration_sum{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/__debug/variant-a",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional"} 0.033597622
+krakend_backend_duration_count{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/__debug/variant-a",krakend_endpoint_method="GET",krakend_endpoint_route="/conditional"} 46
+krakend_backend_duration_sum{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/__debug/wf-inner/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/wf/:id"} 0.035150996999999996
+krakend_backend_duration_count{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/__debug/wf-inner/:id",krakend_endpoint_method="GET",krakend_endpoint_route="/wf/:id"} 46
+krakend_backend_duration_sum{canceled="false",complete="true",error="false",http_request_method="POST",http_route="/",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/routed"} 0.177712791
+krakend_backend_duration_count{canceled="false",complete="true",error="false",http_request_method="POST",http_route="/",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/routed"} 92
+krakend_backend_duration_sum{canceled="false",complete="true",error="false",http_request_method="POST",http_route="/",krakend_endpoint_method="POST",krakend_endpoint_route="/amqp/produce"} 0.0013229170000000003
+krakend_backend_duration_count{canceled="false",complete="true",error="false",http_request_method="POST",http_route="/",krakend_endpoint_method="POST",krakend_endpoint_route="/amqp/produce"} 46
+krakend_backend_duration_sum{canceled="false",complete="true",error="false",http_request_method="POST",http_route="/",krakend_endpoint_method="POST",krakend_endpoint_route="/kafka/publish"} 0.080637205
+krakend_backend_duration_count{canceled="false",complete="true",error="false",http_request_method="POST",http_route="/",krakend_endpoint_method="POST",krakend_endpoint_route="/kafka/publish"} 46
+krakend_backend_duration_sum{canceled="false",complete="true",error="false",http_request_method="POST",http_route="/",krakend_endpoint_method="POST",krakend_endpoint_route="/pubsub/publish"} 0.0019946239999999995
+krakend_backend_duration_count{canceled="false",complete="true",error="false",http_request_method="POST",http_route="/",krakend_endpoint_method="POST",krakend_endpoint_route="/pubsub/publish"} 46
+krakend_backend_duration_sum{canceled="false",complete="true",error="false",http_request_method="POST",http_route="/__debug/graphql",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters"} 0.03732049999999999
+krakend_backend_duration_count{canceled="false",complete="true",error="false",http_request_method="POST",http_route="/__debug/graphql",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters"} 46
+krakend_backend_duration_sum{canceled="false",complete="true",error="false",http_request_method="POST",http_route="/__debug/soap",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters"} 0.038518124
+krakend_backend_duration_count{canceled="false",complete="true",error="false",http_request_method="POST",http_route="/__debug/soap",krakend_endpoint_method="GET",krakend_endpoint_route="/adapters"} 46
+krakend_backend_duration_sum{canceled="false",complete="true",error="false",http_request_method="POST",http_route="/__debug/token",krakend_endpoint_method="POST",krakend_endpoint_route="/token"} 0.05215521000000001
+krakend_backend_duration_count{canceled="false",complete="true",error="false",http_request_method="POST",http_route="/__debug/token",krakend_endpoint_method="POST",krakend_endpoint_route="/token"} 46
+krakend_backend_duration_sum{canceled="false",complete="true",error="false",http_request_method="POST",http_route="/__echo/a",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate"} 0.051950961
+krakend_backend_duration_count{canceled="false",complete="true",error="false",http_request_method="POST",http_route="/__echo/a",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate"} 46
+krakend_backend_duration_sum{canceled="false",complete="true",error="false",http_request_method="POST",http_route="/__echo/b",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate"} 0.038991042
+krakend_backend_duration_count{canceled="false",complete="true",error="false",http_request_method="POST",http_route="/__echo/b",krakend_endpoint_method="POST",krakend_endpoint_route="/aggregate"} 46
+krakend_backend_duration_sum{canceled="false",complete="true",error="false",http_request_method="POST",http_route="/v1/responses",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/chat"} 0.34061329599999995
+krakend_backend_duration_count{canceled="false",complete="true",error="false",http_request_method="POST",http_route="/v1/responses",krakend_endpoint_method="POST",krakend_endpoint_route="/ai/chat"} 138
+krakend_backend_duration_sum{canceled="true",complete="false",error="false",http_request_method="GET",http_route="/",krakend_endpoint_method="GET",krakend_endpoint_route="/amqp/consume"} 9.000482166
+krakend_backend_duration_count{canceled="true",complete="false",error="false",http_request_method="GET",http_route="/",krakend_endpoint_method="GET",krakend_endpoint_route="/amqp/consume"} 3
+# HELP krakend_cb_errors_consecutive_failures 
+# TYPE krakend_cb_errors_consecutive_failures gauge
+krakend_cb_errors_consecutive_failures{cb_name="cb-breaker",count="consecutiveFailures"} 3
+# HELP krakend_cb_errors_consecutive_successes 
+# TYPE krakend_cb_errors_consecutive_successes gauge
+krakend_cb_errors_consecutive_successes{cb_name="cb-breaker",count="consecutiveSuccesses"} 0
+# HELP krakend_cb_errors_requests 
+# TYPE krakend_cb_errors_requests gauge
+krakend_cb_errors_requests{cb_name="cb-breaker",count="request"} 4
+# HELP krakend_cb_errors_total_exclusions 
+# TYPE krakend_cb_errors_total_exclusions gauge
+krakend_cb_errors_total_exclusions{cb_name="cb-breaker",count="totalExclusions"} 0
+# HELP krakend_cb_errors_total_failures 
+# TYPE krakend_cb_errors_total_failures gauge
+krakend_cb_errors_total_failures{cb_name="cb-breaker",count="totalFailures"} 3
+# HELP krakend_cb_errors_total_successes 
+# TYPE krakend_cb_errors_total_successes gauge
+krakend_cb_errors_total_successes{cb_name="cb-breaker",count="totalSuccesses"} 0
+# HELP krakend_cb_state_close_to_open_total 
+# TYPE krakend_cb_state_close_to_open_total counter
+krakend_cb_state_close_to_open_total{cb_name="cb-breaker"} 1
+# HELP krakend_cb_state_half_to_open_total 
+# TYPE krakend_cb_state_half_to_open_total counter
+krakend_cb_state_half_to_open_total{cb_name="cb-breaker"} 21
+# HELP krakend_cb_state_open_to_half_total 
+# TYPE krakend_cb_state_open_to_half_total counter
+krakend_cb_state_open_to_half_total{cb_name="cb-breaker"} 21
+# HELP krakend_llm_tokens_in_total 
+# TYPE krakend_llm_tokens_in_total counter
+krakend_llm_tokens_in_total{model="claude-opus-4-1-20250805",provider="anthropic"} 552
+krakend_llm_tokens_in_total{model="gpt-5-nano",provider="openai"} 2208
+# HELP krakend_llm_tokens_out_total 
+# TYPE krakend_llm_tokens_out_total counter
+krakend_llm_tokens_out_total{model="claude-opus-4-1-20250805",provider="anthropic"} 230
+krakend_llm_tokens_out_total{model="gpt-5-nano",provider="openai"} 920
+# HELP krakend_llm_tokens_total 
+# TYPE krakend_llm_tokens_total counter
+krakend_llm_tokens_total{model="claude-opus-4-1-20250805",provider="anthropic"} 782
+krakend_llm_tokens_total{model="gpt-5-nano",provider="openai"} 3128
+# HELP krakend_promptguard_check_requests_total 
+# TYPE krakend_promptguard_check_requests_total counter
+krakend_promptguard_check_requests_total{http_route="/ai/chat",krakend_backend="",krakend_promptguard_blocked="false"} 138
+krakend_promptguard_check_requests_total{http_route="/ai/chat",krakend_backend="",krakend_promptguard_blocked="true"} 46
+# HELP krakend_proxy_duration 
+# TYPE krakend_proxy_duration histogram
+krakend_proxy_duration_sum{canceled="false",complete="false",error="true",http_request_method="GET",http_route="/amqp/consume"} 129.013514211
+krakend_proxy_duration_count{canceled="false",complete="false",error="true",http_request_method="GET",http_route="/amqp/consume"} 43
+krakend_proxy_duration_sum{canceled="false",complete="false",error="true",http_request_method="GET",http_route="/backend-auth"} 0.07874028899999999
+krakend_proxy_duration_count{canceled="false",complete="false",error="true",http_request_method="GET",http_route="/backend-auth"} 46
+krakend_proxy_duration_sum{canceled="false",complete="false",error="true",http_request_method="GET",http_route="/breaker"} 0.065363203
+krakend_proxy_duration_count{canceled="false",complete="false",error="true",http_request_method="GET",http_route="/breaker"} 46
+krakend_proxy_duration_sum{canceled="false",complete="false",error="true",http_request_method="POST",http_route="/ai/chat"} 0.021601669
+krakend_proxy_duration_count{canceled="false",complete="false",error="true",http_request_method="POST",http_route="/ai/chat"} 46
+krakend_proxy_duration_sum{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/adapters"} 0.05295837499999999
+krakend_proxy_duration_count{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/adapters"} 46
+krakend_proxy_duration_sum{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/admin"} 0.04254854300000001
+krakend_proxy_duration_count{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/admin"} 46
+krakend_proxy_duration_sum{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/basic"} 0.024287665
+krakend_proxy_duration_count{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/basic"} 46
+krakend_proxy_duration_sum{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/conditional"} 0.06267195499999999
+krakend_proxy_duration_count{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/conditional"} 92
+krakend_proxy_duration_sum{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/files/:file"} 0.012744955000000004
+krakend_proxy_duration_count{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/files/:file"} 46
+krakend_proxy_duration_sum{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/kafka/consume"} 0.007928874
+krakend_proxy_duration_count{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/kafka/consume"} 46
+krakend_proxy_duration_sum{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/pubsub/consume"} 0.005279329000000001
+krakend_proxy_duration_count{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/pubsub/consume"} 46
+krakend_proxy_duration_sum{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/secure/:id"} 0.03543583799999999
+krakend_proxy_duration_count{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/secure/:id"} 46
+krakend_proxy_duration_sum{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/shadow"} 0.029953706000000007
+krakend_proxy_duration_count{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/shadow"} 46
+krakend_proxy_duration_sum{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/workflow/:id"} 0.063312792
+krakend_proxy_duration_count{canceled="false",complete="true",error="false",http_request_method="GET",http_route="/workflow/:id"} 46
+krakend_proxy_duration_sum{canceled="false",complete="true",error="false",http_request_method="POST",http_route="/aggregate"} 0.06754829099999998
+krakend_proxy_duration_count{canceled="false",complete="true",error="false",http_request_method="POST",http_route="/aggregate"} 46
+krakend_proxy_duration_sum{canceled="false",complete="true",error="false",http_request_method="POST",http_route="/ai/chat"} 0.361709322
+krakend_proxy_duration_count{canceled="false",complete="true",error="false",http_request_method="POST",http_route="/ai/chat"} 138
+krakend_proxy_duration_sum{canceled="false",complete="true",error="false",http_request_method="POST",http_route="/ai/routed"} 0.17922295400000002
+krakend_proxy_duration_count{canceled="false",complete="true",error="false",http_request_method="POST",http_route="/ai/routed"} 92
+krakend_proxy_duration_sum{canceled="false",complete="true",error="false",http_request_method="POST",http_route="/amqp/produce"} 0.001894708
+krakend_proxy_duration_count{canceled="false",complete="true",error="false",http_request_method="POST",http_route="/amqp/produce"} 46
+krakend_proxy_duration_sum{canceled="false",complete="true",error="false",http_request_method="POST",http_route="/kafka/publish"} 0.08117304099999997
+krakend_proxy_duration_count{canceled="false",complete="true",error="false",http_request_method="POST",http_route="/kafka/publish"} 46
+krakend_proxy_duration_sum{canceled="false",complete="true",error="false",http_request_method="POST",http_route="/pubsub/publish"} 0.002567583
+krakend_proxy_duration_count{canceled="false",complete="true",error="false",http_request_method="POST",http_route="/pubsub/publish"} 46
+krakend_proxy_duration_sum{canceled="false",complete="true",error="false",http_request_method="POST",http_route="/token"} 0.05850096499999999
+krakend_proxy_duration_count{canceled="false",complete="true",error="false",http_request_method="POST",http_route="/token"} 46
+krakend_proxy_duration_sum{canceled="true",complete="false",error="false",http_request_method="GET",http_route="/amqp/consume"} 9.000694209
+krakend_proxy_duration_count{canceled="true",complete="false",error="false",http_request_method="GET",http_route="/amqp/consume"} 3
+# HELP messaging_read_ack_duration_seconds Time spent until ACKing the message
+# TYPE messaging_read_ack_duration_seconds histogram
+messaging_read_ack_duration_seconds_sum{messaging_kind="kafka",messaging_origin="subscriber",messaging_read_acked="true",messaging_read_processed="true",messaging_topic="krakend-demo"} 0.0007315010000000001
+messaging_read_ack_duration_seconds_count{messaging_kind="kafka",messaging_origin="subscriber",messaging_read_acked="true",messaging_read_processed="true",messaging_topic="krakend-demo"} 46
+# HELP messaging_read_body_duration_seconds Time spent reading message
+# TYPE messaging_read_body_duration_seconds histogram
+messaging_read_body_duration_seconds_sum{messaging_kind="kafka",messaging_origin="subscriber",messaging_topic="krakend-demo"} 0.006199042
+messaging_read_body_duration_seconds_count{messaging_kind="kafka",messaging_origin="subscriber",messaging_topic="krakend-demo"} 46
+# HELP messaging_read_body_size_bytes Size of message body
+# TYPE messaging_read_body_size_bytes histogram
+messaging_read_body_size_bytes_sum{messaging_kind="kafka",messaging_origin="subscriber",messaging_topic="krakend-demo"} 552
+messaging_read_body_size_bytes_count{messaging_kind="kafka",messaging_origin="subscriber",messaging_topic="krakend-demo"} 46
+# HELP messaging_write_body_duration_seconds Time spent writing message
+# TYPE messaging_write_body_duration_seconds histogram
+messaging_write_body_duration_seconds_sum{messaging_kind="kafka",messaging_topic="krakend-demo"} 0.079765
+messaging_write_body_duration_seconds_count{messaging_kind="kafka",messaging_topic="krakend-demo"} 46
+# HELP messaging_write_body_size_bytes Size of message body
+# TYPE messaging_write_body_size_bytes histogram
+messaging_write_body_size_bytes_sum{messaging_kind="kafka",messaging_topic="krakend-demo"} 552
+messaging_write_body_size_bytes_count{messaging_kind="kafka",messaging_topic="krakend-demo"} 46
+# HELP target_info Target metadata
+# TYPE target_info gauge
+target_info{deployment_environment="local",service_name="krakend_full",service_version="local"} 1
+# HELP websocket_client_connections_count_total 
+# TYPE websocket_client_connections_count_total counter
+websocket_client_connections_count_total{url_path="ws://localhost:8097/"} 44
+# HELP websocket_client_disconnections_count_b_total 
+# TYPE websocket_client_disconnections_count_b_total counter
+websocket_client_disconnections_count_b_total{url_path="ws://localhost:8097/"} 44
+# HELP websocket_client_request_size_hist_b 
+# TYPE websocket_client_request_size_hist_b histogram
+websocket_client_request_size_hist_b_sum{} 528
+websocket_client_request_size_hist_b_count{} 88
+# HELP websocket_client_response_size_hist_b 
+# TYPE websocket_client_response_size_hist_b histogram
+websocket_client_response_size_hist_b_sum{} 1848
+websocket_client_response_size_hist_b_count{} 132
+# HELP websocket_server_connections_count_b_total 
+# TYPE websocket_server_connections_count_b_total counter
+websocket_server_connections_count_b_total{} 46
+# HELP websocket_server_disconnections_count_b_total 
+# TYPE websocket_server_disconnections_count_b_total counter
+websocket_server_disconnections_count_b_total{} 44
+# HELP websocket_server_request_size_hist_b 
+# TYPE websocket_server_request_size_hist_b histogram
+websocket_server_request_size_hist_b_sum{} 540
+websocket_server_request_size_hist_b_count{} 90
+# HELP websocket_server_response_size_hist_b 
+# TYPE websocket_server_response_size_hist_b histogram
+websocket_server_response_size_hist_b_sum{} 1848
+websocket_server_response_size_hist_b_count{} 132
