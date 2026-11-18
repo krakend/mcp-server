@@ -8,10 +8,8 @@ import (
 )
 
 // stdioFallbackID is a stable, per-process identifier used when the MCP
-// transport does not assign a session ID (e.g. stdio connections). A fresh
-// random value is generated once at startup, so each process gets its own
-// key in the hints cooldown file rather than sharing the global "stdio" key
-// across all concurrent or sequential stdio sessions on the same machine.
+// transport does not assign a session ID (e.g. stdio connections). It keys
+// the in-memory session registry; the hints cooldown is not per session.
 var stdioFallbackID = rand.Text()
 
 var sessionRegistry = &SessionRegistry{

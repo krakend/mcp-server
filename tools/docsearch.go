@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -934,7 +935,8 @@ func SearchDocumentation(ctx context.Context, req *mcp.CallToolRequest, input Se
 			if feature.Edition != "ee" || feature.DocsURL == "" || firstURL == "" {
 				continue
 			}
-			if strings.HasPrefix(firstURL, feature.DocsURL) {
+			// several features can share a namespace; report each one once
+			if strings.HasPrefix(firstURL, feature.DocsURL) && !slices.Contains(eeFeatures, feature.Namespace) {
 				eeFeatures = append(eeFeatures, feature.Namespace)
 			}
 		}
