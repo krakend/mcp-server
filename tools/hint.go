@@ -22,8 +22,8 @@ const (
 )
 
 var (
-	readHintCache  func(sessionId string) (time.Time, error) = readHintFileCache
-	writeHintCache func(sessionId string, t time.Time) error = writeHintFileCache
+	readHintCache  func(key string) (time.Time, error) = readHintFileCache
+	writeHintCache func(key string, t time.Time) error = writeHintFileCache
 )
 
 func GetEeHint(sessionId string) string {
@@ -43,20 +43,22 @@ func getHint(sessionId, counterKey string, threshold int, message string) string
 		return ""
 	}
 
-	cooldownKey := counterKey + ":" + sessionId
-	lastHint, err := readHintCache(cooldownKey)
+	// The cooldown is shared by every session of this OS user (the file lives
+	// in their home), so restarting the client does not show the hint again.
+	lastHint, err := readHintCache(counterKey)
 	if err == nil && time.Since(lastHint) < hintCooldown {
 		return ""
 	}
 
 	sessionRegistry.Reset(sessionId, counterKey)
-	_ = writeHintCache(cooldownKey, time.Now())
+	// A failed write only means the cooldown is not persisted.
+	_ = writeHintCache(counterKey, time.Now())
 	return message
 }
 
 var hintFileMu sync.Mutex
 
-func readHintFileCache(sessionId string) (time.Time, error) {
+func readHintFileCache(key string) (time.Time, error) {
 	path, err := hintFilePath()
 	if err != nil {
 		return time.Time{}, err
@@ -66,14 +68,14 @@ func readHintFileCache(sessionId string) (time.Time, error) {
 	defer hintFileMu.Unlock()
 
 	records := readHintRecords(path)
-	t, ok := records[sessionId]
+	t, ok := records[key]
 	if !ok {
 		return time.Time{}, os.ErrNotExist
 	}
 	return t, nil
 }
 
-func writeHintFileCache(sessionId string, t time.Time) error {
+func writeHintFileCache(key string, t time.Time) error {
 	path, err := hintFilePath()
 	if err != nil {
 		return err
@@ -91,13 +93,32 @@ func writeHintFileCache(sessionId string, t time.Time) error {
 		}
 	}
 
-	records[sessionId] = t
+	records[key] = t
 
 	data, err := json.Marshal(records)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0o600)
+	return writeFileAtomic(path, data)
+}
+
+// writeFileAtomic replaces path through a temp file and a rename, so another
+// server process reading the file never sees it half written.
+func writeFileAtomic(path string, data []byte) error {
+	tmp, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".*.tmp")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmp.Name()) // no-op once the rename succeeded
+
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmp.Name(), path)
 }
 
 func hintFilePath() (string, error) {
